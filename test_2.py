@@ -20,6 +20,7 @@ import numpy as np
 from LetterboxImage import LetterboxImage
 import pandas as pd
 from data_generator import data_generator
+from tqdm import tqdm
 
 ##############################
 
@@ -37,18 +38,39 @@ def _main():
 
     args = parser.parse_args()
 
-
-    # create the image lists
-    print(args.images1)
-    print(args.images2)
-
-    
-
     # create the model
     from model import create_model
-    model, model_body, encoder = create_model((args.image_size, args.image_size, 1), args.feature_vector_len, restart_checkpoint=args.model, backbone=args.backbone)
+    model, _, _ = create_model((args.image_size, args.image_size, 1), args.feature_vector_len, restart_checkpoint=args.model, backbone=args.backbone)
+    
+    # compare the image pairs
+    results = []
+    from itertools import product
+    conv = 'L'
 
+    eval_list = list(product(args.images1, args.images2))
+    
+    pbar = tqdm(total=len(eval_list))
+    pbar.set_description('Comparing...')
+    for x in eval_list:
+        img_a = Image.open(x[0]).convert(conv)
+        mimg_a = LetterboxImage(img_a)
+        mimg_a.do_letterbox(args.image_size, args.image_size, randomize_pos=False)
+
+        img_b = Image.open(x[1]).convert(conv)
+        mimg_b = LetterboxImage(img_b)
+        mimg_b.do_letterbox(args.image_size, args.image_size, randomize_pos=False)
+
+        input_a = np.expand_dims(np.expand_dims(np.array(mimg_a) / 255.0, 2), 0)
+        input_b = np.expand_dims(np.expand_dims(np.array(mimg_b) / 255.0, 2), 0)
+
+        prob = model.predict([input_a, input_b])[0, 0]
+
+        results.append(pd.DataFrame({'image1':x[0], 'image12':x[1], 'probability_same':prob}, index=[0]))
+        pbar.update(1)
         
+    results = pd.concat(results)
 
+    results.to_csv(args.output_csv, index=False)
+    
 if __name__ == "__main__":
     _main()
