@@ -58,11 +58,7 @@ def create_model(image_shape=(224, 224, 1), feature_vector_len=1024, restart_che
     from keras.models import Model
     encoder = Model(input_a, backbone(input_a))
     # load the backbone weights
-    if restart_checkpoint:
-        print('Loading weights from {}'.format(restart_checkpoint))
-        encoder.load_weighths(restart_checkpoint, by_name=True, skip_mismatch=True)
 
-    
     encoded_a = backbone(input_a)
     encoded_b = backbone(input_b)
 
@@ -75,9 +71,14 @@ def create_model(image_shape=(224, 224, 1), feature_vector_len=1024, restart_che
     L1_distance = L1_layer([encoded_a, encoded_b])
     
     # prediction
-    prediction = Dense(1,activation='sigmoid')(L1_distance)
+    prediction = Dense(1,activation='sigmoid', name='sigmoid_final')(L1_distance)
 
     # final model
     model = Model(inputs=[input_a, input_b],outputs=prediction)
+    model_body = Model(inputs=[input_a, input_b],outputs=prediction)
+    
+    if restart_checkpoint:
+        print('Loading weights from {}'.format(restart_checkpoint + '-weights.h5'))
+        model.load_weights(restart_checkpoint + '-weights.h5', by_name=True, skip_mismatch=True)
         
-    return model, encoder
+    return model, model_body, encoder
