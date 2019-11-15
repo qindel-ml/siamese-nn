@@ -42,7 +42,9 @@ def _main():
     parser.add_argument('--end-epoch', type=int, default=5000, help='The ending epoch (5000 by default).')
     parser.add_argument('--checkpoint-name', type=str, default='chkpt', help='The root of the checkpoint names.')
     parser.add_argument('--checkpoint-freq', type=int, default=100, help='The frequency of checkpoints in epochs. Default is 100.')
+    parser.add_argument('--early-stopping-patience', type=int, default=None, help='The number of epoch to wait before stopping if the validation loss does not decrease.')
     parser.add_argument('--same-prob', type=float, default=0.5, help='The probability of comparing to the same image (0.5 by default).')
+    parser.add_argument('--no-aug-prob', type=float, default=0.2, help='The probability that an image is not augmented at all.')
     parser.add_argument('--crop-prob', type=float, default=0.05, help='The crop probability (0.05 by default).')
     parser.add_argument('--crop-frac', type=float, default=0.09, help='The maximum fraction of area cropped-out (0.16 by default).')
     parser.add_argument('--jitter-prob', type=float, default=0.2, help='The jitter probability (0.2 by default')
@@ -115,9 +117,16 @@ def _main():
         filepath=os.path.join(args.output_dir, args.checkpoint_name + '_' + '{epoch:04d}.h5'),
         snapshot_path=os.path.join(args.output_dir, args.checkpoint_name+'.snapshot.h5'),
         model_body=encoder,
-        save_best_only=False,
+        save_best_only=do_valid,
         period=args.checkpoint_freq,
         verbose=1)
+
+    callbacks=[info_lr, lr_callback, checkpoint]
+
+    if do_valid and args.early_stopping_patience:
+        from keras.callbacks import EarlyStopping
+
+        callbacks.append(EarlyStopping(monitor='val_loss', patience=args.early_stopping_patience))
 
     # train
     augment={
@@ -134,7 +143,8 @@ def _main():
                                      args.batch_size,
                                      (args.image_size, args.image_size, 1),
                                      args.same_prob,
-                                     do_valid=False,
+                                     args.no_aug_prob,
+                                     no_augment=False,
                                      augment=augment)
 
     if do_valid:
@@ -142,8 +152,9 @@ def _main():
                                        args.batch_size,
                                        (args.image_size, args.image_size, 1),
                                        args.same_prob,
-                                       do_valid=True,
-                                       augment=None)
+                                       args.no_aug_prob,
+                                       no_augment=False,
+                                       augment=augment)
     else:
         val_generator = None
 
@@ -153,11 +164,11 @@ def _main():
                         validation_steps=max(1, args.images_per_epoch//args.batch_size),
                         epochs=args.end_epoch,
                         initial_epoch=args.start_epoch-1,
-                        callbacks=[info_lr, lr_callback, checkpoint])
+                        callbacks=callbacks)
         
 ##############################
 
-def data_generator(imgs, batch_size, input_shape, same_prob, do_valid=False, augment={}):
+def data_generator(imgs, batch_size, input_shape, same_prob, no_aug_prob, no_augment=False, augment={}):
 
     # initialize
     sizew = input_shape[0]
@@ -178,11 +189,15 @@ def data_generator(imgs, batch_size, input_shape, same_prob, do_valid=False, aug
         b = 0
         while b < batch_size:
 
+            # decide if the images are augmented
+            do_aug =  np.random.random() >= no_aug_prob
+            
             # load and letterbox the first image
             img_a = Image.open(imgs[i]).convert(conv)
             mimg_a = LetterboxImage(img_a)
-            mimg_a.do_augment(augment)
-            mimg_a.do_letterbox(sizew, sizeh, randomize_pos=not do_valid)
+            if do_aug:
+                mimg_a.do_augment(augment)
+            mimg_a.do_letterbox(sizew, sizeh, randomize_pos=not no_augment)
             if conv=='L':
                 image_a.append(np.expand_dims(np.array(mimg_a) / 255.0, 2))
             else:
@@ -200,8 +215,9 @@ def data_generator(imgs, batch_size, input_shape, same_prob, do_valid=False, aug
                 i = (i + 1) %n
 
             # letterbox the second image
-            mimg_b.do_augment(augment)
-            mimg_b.do_letterbox(sizew, sizeh, randomize_pos=not do_valid)
+            if do_aug:
+                mimg_b.do_augment(augment)
+            mimg_b.do_letterbox(sizew, sizeh, randomize_pos=not no_augment)
             if conv=='L':
                 image_b.append(np.expand_dims(np.array(mimg_b) / 255.0, 2))
             else:
