@@ -14,6 +14,7 @@ class MyModelCheckpoint(Callback):
 
     def __init__(self,
                  model_body,
+                 encoder,
                  filepath,
                  snapshot_path,
                  monitor='val_loss',
@@ -27,6 +28,7 @@ class MyModelCheckpoint(Callback):
         self.monitor = monitor
         self.verbose = verbose
         self.model_body = model_body
+        self.encoder = encoder
         self.filepath = filepath
         self.snapshot_path = snapshot_path
         self.save_best_only = save_best_only
@@ -81,7 +83,8 @@ class MyModelCheckpoint(Callback):
 
                         self.best = current
                         saved = True
-                        self.model_body.save(filepath, overwrite=True)
+                        self.encoder.save(filepath+'-encoder.h5', overwrite=True)
+                        self.model_body.save_weights(filepath+'-weights.h5', overwrite=True)
 
                     else:
                             
@@ -94,7 +97,9 @@ class MyModelCheckpoint(Callback):
                 if self.verbose > 0:
                     print('\nEpoch %05d: saving model to %s' % (epoch + 1, filepath))
                     saved = True
-                    self.model_body.save(filepath, overwrite=True)
+                    self.encoder.save(filepath+'-encoder.h5', overwrite=True)
+                    self.model_body.save_weights(filepath+'-weights.h5', overwrite=True)
+
 
 
         if self.mlflow and self.save_best_only:
@@ -105,7 +110,8 @@ class MyModelCheckpoint(Callback):
 
             if self.mlflow:
                 import mlflow
-                mlflow.log_artifact(filepath)
+                mlflow.log_artifact(filepath + '-weights.h5')
+                mlflow.log_artifact(filepath + '-encoder.h5')
                 if not(self.eval_dump is None):
                     mlflow.log_artifact(jsonname)
                 
