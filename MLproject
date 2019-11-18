@@ -8,7 +8,7 @@ entry_points:
       image-size: {type: int, default: 224}
       batch-size: {type: int, default: 8}
       feature-vector-len: {type: int, default: 1024}
-      backbone: {type:str, default: 'siamese'}
+      backbone: {type: str, default: 'siamese'}
       max-lr: {type: float, default: 1e-4}
       min-lr: {type: float, default: 1e-5}
       lr-schedule: {type: str, default: 'cosine'}

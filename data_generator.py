@@ -23,13 +23,16 @@ def data_generator(imgs, batch_size, input_shape, same_prob, no_aug_prob, no_aug
         b = 0
         while b < batch_size:
 
-            # decide if the images are augmented
-            do_aug =  np.random.random() >= no_aug_prob
+            # decide if both images are left unaugmented
+            do_aug_both = np.random.random() >= no_aug_prob
+            
+            # decide if the left image is augmented
+            do_aug_l =  (np.random.random() >= no_aug_prob) and do_aug_both
             
             # load and letterbox the first image
             img_a = Image.open(imgs[i]).convert(conv)
             mimg_a = LetterboxImage(img_a)
-            if do_aug:
+            if do_aug_l:
                 mimg_a.do_augment(augment)
             mimg_a.do_letterbox(sizew, sizeh, randomize_pos=not no_augment)
             if conv=='L':
@@ -49,7 +52,10 @@ def data_generator(imgs, batch_size, input_shape, same_prob, no_aug_prob, no_aug
                 i = (i + 1) %n
 
             # letterbox the second image
-            if do_aug:
+            # decide if the right image is augmented
+            do_aug_r =  (np.random.random() >= no_aug_prob) and do_aug_both
+
+            if do_aug_r:
                 mimg_b.do_augment(augment)
             mimg_b.do_letterbox(sizew, sizeh, randomize_pos=not no_augment)
             if conv=='L':
