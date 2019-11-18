@@ -34,6 +34,7 @@ def _main():
     parser.add_argument('--batch-size', type=int, default=8, help='The training minibatch size.')
     parser.add_argument('--feature-vector-len', type=int, default=1024, help='The length of the feature vector (1024 by default).')
     parser.add_argument('--backbone', type=str, default='siamese', help='The network backbone: siamese(default), mobilenetv2, resnet50')
+    parser.add_argument('--freeze-backbone', type=int, default=0, help='Set to 1 to freeze the backbone (0 by default).')
     parser.add_argument('--max-lr', type=float, default=1e-4, help='The maximum (and also initial) learning rate (1e-4 by default).')
     parser.add_argument('--min-lr', type=float, default=1e-5, help='The minimum learning rate (1e-5 by default).')
     parser.add_argument('--lr-schedule', type=str, default='cosine', help='The learning rate schedule: cosine (default), cyclic.')
@@ -101,7 +102,7 @@ def _main():
     # create the model
     from model import create_model
     num_channels = 1 if args.backbone == 'siamese' else 3
-    model, model_body, encoder = create_model((args.image_size, args.image_size, num_channels), args.feature_vector_len, restart_checkpoint=args.restart_checkpoint, backbone=args.backbone)
+    model, model_body, encoder = create_model((args.image_size, args.image_size, num_channels), args.feature_vector_len, restart_checkpoint=args.restart_checkpoint, backbone=args.backbone, freeze=args.freeze_backbone==1)
 
     print('\nThe model:')
     print(model.summary())

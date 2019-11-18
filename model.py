@@ -1,7 +1,7 @@
 """
 This file implements an image similariy detectos. It takes a grayscale image as input and returns the probability that the images are different.
 """
-def create_model(image_shape=(224, 224, 1), feature_vector_len=1024, restart_checkpoint=None, backbone='siamese'):
+def create_model(image_shape=(224, 224, 1), feature_vector_len=1024, restart_checkpoint=None, backbone='siamese', freeze=False):
     """
     Creates a siamese model. 
 
@@ -9,6 +9,7 @@ def create_model(image_shape=(224, 224, 1), feature_vector_len=1024, restart_che
         image_shape: input image shape (use [None, None] for resizable network)
         restart_checkpoint: snapshot to be restored
         backbone: the backbone CNN (one of mobilenetv2, siamese, resnet50)
+        freeze: feeze the backbone
     """
     # input tensors placeholders
     from keras.layers import Input
@@ -16,10 +17,11 @@ def create_model(image_shape=(224, 224, 1), feature_vector_len=1024, restart_che
     input_b = Input(shape=image_shape)
 
     # get the backbone
+    backbone_name = backbone
     from keras.models import Sequential
     from keras.layers import Dense, BatchNormalization, Conv2D, MaxPooling2D, Flatten
     backbone = Sequential()
-    if backbone=='siamese':
+    if backbone_name=='siamese':
         print('Using siamese backbone.')
 
         backbone.add(Conv2D(64, (10,10), activation='relu', input_shape=image_shape, name='conv2D_1'))
@@ -38,7 +40,7 @@ def create_model(image_shape=(224, 224, 1), feature_vector_len=1024, restart_che
         backbone.add(BatchNormalization(name='BN_4'))
         backbone.add(MaxPooling2D(name='MaxPool_4'))
 
-    elif backbone=='resnet50':
+    elif backbone_name=='resnet50':
         raise Exception('ResNet50 backbone not implemented!')
         print('Using ResNet50 backbone.')
         from keras.applications.resnet import ResNet50
@@ -47,6 +49,10 @@ def create_model(image_shape=(224, 224, 1), feature_vector_len=1024, restart_che
         from keras.applications.mobilenet_v2 import MobileNetV2
 
         backbone.add(MobileNetV2(input_shape=image_shape, include_top=False))
+        if freeze:
+            print('Freezing MobileNetV2 backbone.')
+            for layer in backbone.layers[0].layers:
+                layer.trainable = False
 
 
     backbone.add(Flatten(name='Flatten'))
@@ -59,6 +65,7 @@ def create_model(image_shape=(224, 224, 1), feature_vector_len=1024, restart_che
     print(backbone.summary())
     from keras.models import Model
     encoder = Model(input_a, backbone(input_a))
+    
     # load the backbone weights
 
     encoded_a = backbone(input_a)
@@ -78,7 +85,7 @@ def create_model(image_shape=(224, 224, 1), feature_vector_len=1024, restart_che
     # final model
     model = Model(inputs=[input_a, input_b],outputs=prediction)
     model_body = Model(inputs=[input_a, input_b],outputs=prediction)
-    
+
     if restart_checkpoint:
         print('Loading weights from {}'.format(restart_checkpoint + '-weights.h5'))
         model.load_weights(restart_checkpoint + '-weights.h5', by_name=True, skip_mismatch=True)
