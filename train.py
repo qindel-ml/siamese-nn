@@ -107,22 +107,28 @@ def _main():
     print('\nThe model:')
     print(model.summary())
 
-    # compile the model
-    from keras.optimizers import Adam
-    model.compile(loss='binary_crossentropy', optimizer=Adam(lr=args.max_lr))
-
     # prepare the callbacks
     from lr_info import lr_info
     info_lr = lr_info(model)
 
+    # learning rate
+
+    # scale the larning rate to the batch size
+    max_lr = args.max_lr * np.sqrt(args.batch_size)
+    min_lr = args.min_lr * np.sqrt(args.batch_size)
+
+    print('Scaling the learning rate minimum to {} and maximum (initial) to {}'.format(min_lr, max_lr))
+    print('The original values are {} and {}, and are multiplied by the root of the batch size {}.'.format(args.min_lr, args.max_lr, args.batch_size))
+
     if args.lr_schedule == 'cosine':
         print('Using the cosine annealing learning rate scheduler.')
         from cos_callback import CosineAnnealingScheduler
-        lr_callback = CosineAnnealingScheduler(args.max_lr, args.batch_size, args.lr_schedule_cycle, min_lr=args.min_lr, verbose=True, initial_counter=(args.start_epoch - 1) * args.images_per_epoch//args.batch_size)
+        lr_callback = CosineAnnealingScheduler(max_lr, args.batch_size, args.lr_schedule_cycle, min_lr=min_lr, verbose=True, initial_counter=(args.start_epoch - 1) * args.images_per_epoch//args.batch_size)
     else:
         from clr_callback import CyclicLR
-        lr_callback = CyclicLR(model='triangular', max_lr=args.maxlr, base_lr=args.min_lr, step_size=args.lr_schedule_cycle//args.batch_size)
+        lr_callback = CyclicLR(model='triangular', max_lr=maxlr, base_lr=min_lr, step_size=args.lr_schedule_cycle//args.batch_size)
 
+    # checkpoints
     from checkpoint import MyModelCheckpoint
     checkpoint = MyModelCheckpoint(
         filepath=os.path.join(args.output_dir, args.checkpoint_name + '_' + '{epoch:04d}'),
@@ -141,6 +147,10 @@ def _main():
 
         callbacks.append(EarlyStopping(monitor='val_loss', patience=args.early_stopping_patience))
 
+    # compile the model with the initial learning rate
+    from keras.optimizers import Adam
+    model.compile(loss='binary_crossentropy', optimizer=Adam(lr=max_lr))
+        
     # train
     augment={
         'crop_prob':args.crop_prob,

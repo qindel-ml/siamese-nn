@@ -21,7 +21,7 @@ class CosineAnnealingScheduler(Callback):
         self.batch_size = batch_size
         self.half_period = half_period / self.batch_size
         self.counter = initial_counter
-        self.x = (self.counter / self.half_period) * math.pi
+        self.x = min([math.pi, (self.counter / self.half_period) * math.pi])
         self.lr = self.min_lr + (self.initial_lr - self.min_lr) * (1.0 + math.cos(self.x)) / 2.0
 
         if verbose:
