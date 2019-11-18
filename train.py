@@ -53,6 +53,9 @@ def _main():
     parser.add_argument('--rot', type=float, default=0.0, help='The rotation probability (0.0 by default).')
     parser.add_argument('--hflip', type=float, default=0.0, help='The horizontal flip probability (0.0 by default).')
     parser.add_argument('--vflip', type=float, default=0.3, help='The vertical flip probability (0.0 by default).')
+    parser.add_argument('--hue', type=float, default=0.05, help='The hue variation (ignored for siamese backbone).')
+    parser.add_argument('--sat', type=float, default=0.2, help='The saturation variation (ignored for siamese backbone).')
+    parser.add_argument('--val', type=float, default=0.2, help='The value variation (ignored for siamese backbone).')
     parser.add_argument('--mlflow', type=int, default=0, help='Set to 1 if using MLflow. Metrics and artifacts will be logged.')
 
     args = parser.parse_args()
@@ -97,7 +100,8 @@ def _main():
 
     # create the model
     from model import create_model
-    model, model_body, encoder = create_model((args.image_size, args.image_size, 1), args.feature_vector_len, restart_checkpoint=args.restart_checkpoint, backbone=args.backbone)
+    num_channels = 1 if args.backbone == 'siamese' else 3
+    model, model_body, encoder = create_model((args.image_size, args.image_size, num_channels), args.feature_vector_len, restart_checkpoint=args.restart_checkpoint, backbone=args.backbone)
 
     print('\nThe model:')
     print(model.summary())
@@ -144,12 +148,15 @@ def _main():
         'jitter':args.jitter,
         'rot':args.rot,
         'hflip':args.hflip,
-        'vflip':args.vflip
+        'vflip':args.vflip,
+        'hue':args.hue,
+        'sat':args.sat,
+        'val':args.val
     }
     
     train_generator = data_generator(train_imgs,
                                      args.batch_size,
-                                     (args.image_size, args.image_size, 1),
+                                     (args.image_size, args.image_size, num_channels),
                                      args.same_prob,
                                      args.no_aug_prob,
                                      no_augment=False,
@@ -158,7 +165,7 @@ def _main():
     if do_valid:
         val_generator = data_generator(val_imgs,
                                        args.batch_size,
-                                       (args.image_size, args.image_size, 1),
+                                       (args.image_size, args.image_size, num_channels),
                                        args.same_prob,
                                        args.no_aug_prob,
                                        no_augment=False,

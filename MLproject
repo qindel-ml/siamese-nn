@@ -28,4 +28,7 @@ entry_points:
       rot: {type: float, default: 0.0}
       hflip: {type: float, default: 0.3}
       vflip: {type: float, default: 0.0}
-    command: "./siamese-nn/train.py  --mlflow 1 --image-size {image-size} --batch-size {batch-size} --feature-vector-len {feature-vector-len} --backbone {backbone} --max-lr {max-lr} --min-lr {min-lr} --lr-schedule {lr-schedule} --lr-schedule-cycle {lr-schedule-cycle} --images-per-epoch {images-per-epoch} --start-epoch {start-epoch} --end-epoch {end-epoch} --checkpoint-name {checkpoint-name} --checkpoint-freq {checkpoint-freq} --early-stopping-patience {early-stopping-patience} --same-prob {same-prob} --no-aug-prob {no-aug-prob} --crop-prob {crop-prob} --crop-frac {crop-frac} --jitter-prob {jitter-prob} --jitter {jitter} --rot {rot} --hflip {hflip} --vflip {vflip}"
+      hue: {type: float, default: 0.05}
+      sat: {type: float, default: 0.2}
+      val: {type: float, default: 0.2}
+    command: "./siamese-nn/train.py  --mlflow 1 --image-size {image-size} --batch-size {batch-size} --feature-vector-len {feature-vector-len} --backbone {backbone} --max-lr {max-lr} --min-lr {min-lr} --lr-schedule {lr-schedule} --lr-schedule-cycle {lr-schedule-cycle} --images-per-epoch {images-per-epoch} --start-epoch {start-epoch} --end-epoch {end-epoch} --checkpoint-name {checkpoint-name} --checkpoint-freq {checkpoint-freq} --early-stopping-patience {early-stopping-patience} --same-prob {same-prob} --no-aug-prob {no-aug-prob} --crop-prob {crop-prob} --crop-frac {crop-frac} --jitter-prob {jitter-prob} --jitter {jitter} --rot {rot} --hflip {hflip} --vflip {vflip} --hue {hue} --sat {sat} --val {val}"

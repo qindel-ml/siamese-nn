@@ -12,16 +12,16 @@ def create_model(image_shape=(224, 224, 1), feature_vector_len=1024, restart_che
     """
     # input tensors placeholders
     from keras.layers import Input
-    input_a = Input(shape=(image_shape[0], image_shape[1], 1))
-    input_b = Input(shape=(image_shape[0], image_shape[1], 1))
+    input_a = Input(shape=image_shape)
+    input_b = Input(shape=image_shape)
 
     # get the backbone
+    from keras.models import Sequential
+    from keras.layers import Dense, BatchNormalization, Conv2D, MaxPooling2D, Flatten
+    backbone = Sequential()
     if backbone=='siamese':
         print('Using siamese backbone.')
-        from keras.layers import Dense, BatchNormalization, Conv2D, MaxPooling2D, Flatten
-        from keras.models import Sequential
 
-        backbone = Sequential()
         backbone.add(Conv2D(64, (10,10), activation='relu', input_shape=image_shape, name='conv2D_1'))
         backbone.add(BatchNormalization(name='BN_1'))
         backbone.add(MaxPooling2D(name='MaxPool_1'))
@@ -38,18 +38,20 @@ def create_model(image_shape=(224, 224, 1), feature_vector_len=1024, restart_che
         backbone.add(BatchNormalization(name='BN_4'))
         backbone.add(MaxPooling2D(name='MaxPool_4'))
 
-        backbone.add(Flatten(name='Flatten'))
-        backbone.add(Dense(feature_vector_len, activation='sigmoid', name='Features'))
-        backbone.add(BatchNormalization(name='BN_5'))
-
     elif backbone=='resnet50':
         raise Exception('ResNet50 backbone not implemented!')
         print('Using ResNet50 backbone.')
         from keras.applications.resnet import ResNet50
     else:
-        raise Exception('MobileNetV2 backbone not implemented!')
         print('Using MobileNetV2 backbone.')    
         from keras.applications.mobilenet_v2 import MobileNetV2
+
+        backbone.add(MobileNetV2(input_shape=image_shape, include_top=False))
+
+
+    backbone.add(Flatten(name='Flatten'))
+    backbone.add(Dense(feature_vector_len, activation='sigmoid', name='Features'))
+    backbone.add(BatchNormalization(name='BN_5'))
 
         
     # join networks

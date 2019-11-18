@@ -7,6 +7,7 @@ from matplotlib.colors import rgb_to_hsv, hsv_to_rgb
 class LetterboxImage(object):
     def __init__(self, img):
         self._img = img.copy()
+        self.colors_ = 'L' if len(np.array(self._img).shape)==2 else 'RGB'
 
     def __getattr__(self, key):
         if key == '_img':
@@ -29,14 +30,11 @@ class LetterboxImage(object):
             curw, curh = self._img.size
         
         # create the final image and fill it
-        
-
-        colors_ = 'L' if len(np.array(self._img).shape)==2 else 'RGB'
-        if colors_ == 'L':
+        if self.colors_ == 'L':
             fill_color = 128
         else:
             fill_color = (128, 128, 128)
-        new_img = Image.new(colors_, (sizew, sizeh), fill_color)
+        new_img = Image.new(self.colors_, (sizew, sizeh), fill_color)
 
         if randomize_pos:
             dx = np.random.randint(low=0, high=max([0, sizew - curw])+1)
@@ -134,40 +132,34 @@ class LetterboxImage(object):
                 self._img = self._img.transpose(Image.FLIP_TOP_BOTTOM)
 
             dist_col = False
-            if 'hue' in augment:
-                self.hue = flrand(-augment['hue'], augment['hue'])
-                dist_col = True
-                self.aug_hue = self.hue
+            if self.colors_ == 'RGB':
+                if 'hue' in augment:
+                    self.hue = flrand(-augment['hue'], augment['hue'])
+                    dist_col = True
+                    self.aug_hue = self.hue
 
-            if 'hueflip' in augment:
-                self.hueflip = flrand() < augment['hueflip']
-                dist_col = True
-                self.aug_do_hueflip = self.hueflip
+                if 'sat' in augment:
+                    self.sat = flrand(1, 1 + augment['sat']) if flrand() < 0.5 else 1 / flrand(1, 1 + augment['sat'])
+                    dist_col = True
+                    self.aug_sat = self.sat
 
-            if 'sat' in augment:
-                self.sat = flrand(1, 1 + augment['sat']) if flrand() < 0.5 else 1 / flrand(1, 1 + augment['sat'])
-                dist_col = True
-                self.aug_sat = self.sat
+                if 'val' in augment:
+                    self.val = flrand(1, 1 + augment['val']) if flrand() < 0.5 else 1 / flrand(1, 1 + augment['val'])
+                    dist_col = True
+                    self.aug_val = self.val
 
-            if 'val' in augment:
-                self.val = flrand(1, 1 + augment['val']) if flrand() < 0.5 else 1 / flrand(1, 1 + augment['val'])
-                dist_col = True
-                self.aug_val = self.val
+                if dist_col:
+                    x = rgb_to_hsv(np.array(self._img)/255.)
+                    x[..., 0] += self.hue
+                    x[..., 0][x[..., 0]>1] -= 1
+                    x[..., 0][x[..., 0]<0] += 1
 
-            if dist_col:
-                x = rgb_to_hsv(np.array(self._img)/255.)
-                x[..., 0] += self.hue
-                x[..., 0][x[..., 0]>1] -= 1
-                x[..., 0][x[..., 0]<0] += 1
+                    x[..., 1] *= self.sat
+                    x[..., 2] *= self.val
+                    x[x>1] = 1
+                    x[x<0] = 0
 
-                if self.hueflip:
-                    x[..., 0] = 1 - x[..., 0]
-                x[..., 1] *= self.sat
-                x[..., 2] *= self.val
-                x[x>1] = 1
-                x[x<0] = 0
-
-                self._img = Image.fromarray(np.uint8(hsv_to_rgb(x) * 255))
+                    self._img = Image.fromarray(np.uint8(hsv_to_rgb(x) * 255))
 
         
         
