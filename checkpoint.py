@@ -112,6 +112,4 @@ class MyModelCheckpoint(Callback):
                 import mlflow
                 mlflow.log_artifact(filepath + '-weights.h5')
                 mlflow.log_artifact(filepath + '-encoder.h5')
-                if not(self.eval_dump is None):
-                    mlflow.log_artifact(jsonname)
                 

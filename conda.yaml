@@ -1,0 +1,17 @@
+channels:
+- defaults
+dependencies:
+- python=3.7.3
+- pip:
+  - mlflow
+  - cloudpickle==1.2.1
+  - tensorflow==1.14.0
+  - keras==2.2.4
+  - numpy==1.16.4
+  - pandas==0.25.1
+  - pillow==6.1.0
+  - opencv-python==4.1.1.26
+  - matplotlib==3.1.1
+  - tqdm==4.32.1
+  - wand==0.5.7
+name: mflow-image-classifier-env

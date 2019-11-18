@@ -43,7 +43,7 @@ def _main():
     parser.add_argument('--end-epoch', type=int, default=5000, help='The ending epoch (5000 by default).')
     parser.add_argument('--checkpoint-name', type=str, default='chkpt', help='The root of the checkpoint names.')
     parser.add_argument('--checkpoint-freq', type=int, default=100, help='The frequency of checkpoints in epochs. Default is 100.')
-    parser.add_argument('--early-stopping-patience', type=int, default=None, help='The number of epoch to wait before stopping if the validation loss does not decrease.')
+    parser.add_argument('--early-stopping-patience', type=int, default=-1, help='The number of epoch to wait before stopping if the validation loss does not decrease. Set to -1 to disable (default)')
     parser.add_argument('--same-prob', type=float, default=0.5, help='The probability of comparing to the same image (0.5 by default).')
     parser.add_argument('--no-aug-prob', type=float, default=0.2, help='The probability that an image is not augmented at all.')
     parser.add_argument('--crop-prob', type=float, default=0.05, help='The crop probability (0.05 by default).')
@@ -53,11 +53,16 @@ def _main():
     parser.add_argument('--rot', type=float, default=0.0, help='The rotation probability (0.0 by default).')
     parser.add_argument('--hflip', type=float, default=0.0, help='The horizontal flip probability (0.0 by default).')
     parser.add_argument('--vflip', type=float, default=0.3, help='The vertical flip probability (0.0 by default).')
-    
+    parser.add_argument('--mlflow', type=int, default=0, help='Set to 1 if using MLflow. Metrics and artifacts will be logged.')
 
     args = parser.parse_args()
 
+    # start the mlflow autologging
+    if args.mlflow:
+        import mlflow.keras
+        mlflow.keras.autolog()
 
+    
     # create the image lists
     exts = ('.jpg', '.JPG', '.jpeg', '.JPEG', '.png', '.PNG', '.gif', '.GIF', '.tiff', '.TIFF', '.TIF', '.bmp', '.BMP')
     train_imgs = []
@@ -121,11 +126,12 @@ def _main():
         encoder = encoder,
         save_best_only=do_valid,
         period=args.checkpoint_freq,
-        verbose=1)
+        verbose=1,
+        mlflow= args.mlflow==1)
 
     callbacks=[info_lr, lr_callback, checkpoint]
 
-    if do_valid and args.early_stopping_patience:
+    if do_valid and args.early_stopping_patience != -1:
         from keras.callbacks import EarlyStopping
 
         callbacks.append(EarlyStopping(monitor='val_loss', patience=args.early_stopping_patience))
