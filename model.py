@@ -1,7 +1,7 @@
 """
 This file implements an image similariy detectos. It takes a grayscale image as input and returns the probability that the images are different.
 """
-def create_model(image_shape=(224, 224, 1), feature_vector_len=1024, restart_checkpoint=None, backbone='siamese', freeze=False):
+def create_model(image_shape=(224, 224, 1), feature_vector_len=1024, restart_checkpoint=None, backbone='siamese', freeze=False, l2=False):
     """
     Creates a siamese model. 
 
@@ -10,6 +10,7 @@ def create_model(image_shape=(224, 224, 1), feature_vector_len=1024, restart_che
         restart_checkpoint: snapshot to be restored
         backbone: the backbone CNN (one of mobilenetv2, siamese, resnet50)
         freeze: feeze the backbone
+        l2: use L2 (square) difference instead of L1 (absolute) one
     """
     # input tensors placeholders
     from keras.layers import Input
@@ -72,15 +73,19 @@ def create_model(image_shape=(224, 224, 1), feature_vector_len=1024, restart_che
     encoded_b = backbone(input_b)
 
     # similarity prediction
-    from keras.layers import Lambda, Dense
+    from keras.layers import Lambda, Dense, Subtract, Multiply
     import keras.backend as K
 
     # distance
-    L1_layer = Lambda(lambda tensors:K.abs(tensors[0] - tensors[1]))
-    L1_distance = L1_layer([encoded_a, encoded_b])
+    if l2:
+        diff = Subtract()([encoded_a, encoded_b])
+        distance = Multiply()([diff, diff])
+    else:
+        diff_layer = Lambda(lambda tensors:K.abs(tensors[0] - tensors[1]))
+        distance = diff_layer([encoded_a, encoded_b])
     
     # prediction
-    prediction = Dense(1,activation='sigmoid', name='sigmoid_final')(L1_distance)
+    prediction = Dense(1,activation='sigmoid', name='sigmoid_final')(distance)
 
     # final model
     model = Model(inputs=[input_a, input_b],outputs=prediction)
