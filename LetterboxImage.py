@@ -1,6 +1,5 @@
 from PIL import Image
 import numpy as np
-import cv2
 from matplotlib.colors import rgb_to_hsv, hsv_to_rgb
 
 
@@ -15,19 +14,22 @@ class LetterboxImage(object):
         return getattr(self._img, key)
 
 
-    def do_letterbox(self, sizew, sizeh, randomize_pos=True):
+    def do_letterbox(self, sizew, sizeh, randomize_pos=True, targets=None):
 
-        curw, curh = self._img.size
-
+        if targets:
+            curw, curh = targets
+        else:
+            curw, curh = self._img.size
+        
         # resize image if necessary
         new_scale=min([sizew / curw, sizeh / curh])
         target_w = int(curw * new_scale)
         target_h = int(curh * new_scale)
-        
-        if new_scale < 1:
-            res = cv2.resize(np.asarray(self._img), dsize=(target_w, target_h), interpolation=cv2.INTER_LINEAR)
-            self._img = Image.fromarray(res)
-            curw, curh = self._img.size
+
+        if new_scale<1:
+            self._img = self._img.resize((target_w, target_h), Image.BILINEAR)
+        if new_scale>=1:
+            self._img = self._img.resize((target_w, target_h), Image.NEAREST)
         
         # create the final image and fill it
         if self.colors_ == 'L':
@@ -60,11 +62,11 @@ class LetterboxImage(object):
        
         curw = iw
         curh = ih
-        
+        target_w, target_h = curw, curh
         # augment?
         if not augment:
             do_augment = False
-            return
+            return target_w, target_h
         else:
             do_augment = True
             
@@ -95,14 +97,13 @@ class LetterboxImage(object):
     
         target_w = int(curw * new_scale)
         target_h = int(curh * new_scale)
-        new_scale=min([target_w / iw, target_h / ih])
+        #new_scale=min([target_w / iw, target_h / ih])
 
-        if new_scale<1:
-            res = cv2.resize(np.asarray(self._img), dsize=(target_w, target_h), interpolation=cv2.INTER_LINEAR)
-            self._img = Image.fromarray(res)
-        if new_scale>=1:
-            res = cv2.resize(np.asarray(self._img), dsize=(target_w, target_h), interpolation=cv2.INTER_NEAREST)
-            self._img = Image.fromarray(res)
+        #if new_scale<1:
+        #    self._img = self._img.resize((target_w, target_h), Image.BILINEAR)
+        #if new_scale>=1:
+        #    self._img = self._img.resize((target_w, target_h), Image.NEAREST)
+            
         curw, curh = self._img.size
 
         if do_augment:
@@ -162,6 +163,7 @@ class LetterboxImage(object):
                     self._img = Image.fromarray(np.uint8(hsv_to_rgb(x) * 255))
 
         
-        
+        return target_w, target_h
+
 def flrand(a=0, b=1):
     return (b - a) * np.random.rand() + a

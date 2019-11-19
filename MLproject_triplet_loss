@@ -6,7 +6,8 @@ entry_points:
   main:
     parameters:
       image-size: {type: int, default: 224}
-      batch-size: {type: int, default: 8}
+      batch-size: {type: int, default: 24}
+      loss-batch: {type: int, default: 4}
       backbone: {type: str, default: 'mobilenetv2'}
       margin: {type: float, default: 0.4}
       max-lr: {type: float, default: 1e-4}
@@ -31,4 +32,4 @@ entry_points:
       hue: {type: float, default: 0.05}
       sat: {type: float, default: 0.2}
       val: {type: float, default: 0.2}
-    command: "./siamese-nn/train_triple_loss.py  --mlflow 1 --image-size {image-size} --batch-size {batch-size} --backbone {backbone} --margin {margin} --max-lr {max-lr} --min-lr {min-lr} --lr-schedule {lr-schedule} --lr-schedule-cycle {lr-schedule-cycle} --images-per-epoch {images-per-epoch} --start-epoch {start-epoch} --end-epoch {end-epoch} --checkpoint-name {checkpoint-name} --checkpoint-freq {checkpoint-freq} --early-stopping-patience {early-stopping-patience} --same-prob {same-prob} --no-aug-prob {no-aug-prob} --crop-prob {crop-prob} --crop-frac {crop-frac} --jitter-prob {jitter-prob} --jitter {jitter} --rot {rot} --hflip {hflip} --vflip {vflip} --hue {hue} --sat {sat} --val {val}"
+    command: "./siamese-nn/train_triplet_loss.py  --mlflow 1 --image-size {image-size} --batch-size {batch-size} --loss-batch {loss-batch} --backbone {backbone} --margin {margin} --max-lr {max-lr} --min-lr {min-lr} --lr-schedule {lr-schedule} --lr-schedule-cycle {lr-schedule-cycle} --images-per-epoch {images-per-epoch} --start-epoch {start-epoch} --end-epoch {end-epoch} --checkpoint-name {checkpoint-name} --checkpoint-freq {checkpoint-freq} --early-stopping-patience {early-stopping-patience} --same-prob {same-prob} --no-aug-prob {no-aug-prob} --crop-prob {crop-prob} --crop-frac {crop-frac} --jitter-prob {jitter-prob} --jitter {jitter} --rot {rot} --hflip {hflip} --vflip {vflip} --hue {hue} --sat {sat} --val {val}"
