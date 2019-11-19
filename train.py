@@ -109,7 +109,7 @@ def _main():
 
     # prepare the callbacks
     from lr_info import lr_info
-    info_lr = lr_info(model)
+    info_lr = lr_info(model, args.mlflow==1)
 
     # learning rate
 
