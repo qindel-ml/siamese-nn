@@ -84,7 +84,8 @@ class MyModelCheckpoint(Callback):
                         self.best = current
                         saved = True
                         self.encoder.save(filepath+'-encoder.h5', overwrite=True)
-                        self.model_body.save_weights(filepath+'-weights.h5', overwrite=True)
+                        if self.model_body:
+                            self.model_body.save_weights(filepath+'-weights.h5', overwrite=True)
 
                     else:
                             
@@ -98,7 +99,8 @@ class MyModelCheckpoint(Callback):
                     print('\nEpoch %05d: saving model to %s' % (epoch + 1, filepath))
                     saved = True
                     self.encoder.save(filepath+'-encoder.h5', overwrite=True)
-                    self.model_body.save_weights(filepath+'-weights.h5', overwrite=True)
+                    if self.model_body:
+                        self.model_body.save_weights(filepath+'-weights.h5', overwrite=True)
 
 
 
@@ -110,6 +112,7 @@ class MyModelCheckpoint(Callback):
 
             if self.mlflow:
                 import mlflow
-                mlflow.log_artifact(filepath + '-weights.h5')
+                if self.model_body:
+                    mlflow.log_artifact(filepath + '-weights.h5')
                 mlflow.log_artifact(filepath + '-encoder.h5')
                 

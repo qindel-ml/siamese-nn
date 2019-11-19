@@ -18,7 +18,7 @@ from PIL import Image
 import argparse
 import numpy as np
 from LetterboxImage import LetterboxImage
-from data_generator import data_generator
+from data_generator_triplets import data_generator
 
 ##############################
 
@@ -32,10 +32,8 @@ def _main():
     parser.add_argument('--restart-checkpoint', type=str, default=None, help='The checkpoint from which to restart.')
     parser.add_argument('--image-size', type=int, default=224, help='The image size in pixels, default is 224 (meaning 224x224).')
     parser.add_argument('--batch-size', type=int, default=8, help='The training minibatch size.')
-    parser.add_argument('--feature-vector-len', type=int, default=1024, help='The length of the feature vector (1024 by default).')
-    parser.add_argument('--use-l2', type=int, default=0, help='If set to 1, use L2 instead of L1 difference.')
-    parser.add_argument('--backbone', type=str, default='siamese', help='The network backbone: siamese(default), mobilenetv2, resnet50')
-    parser.add_argument('--freeze-backbone', type=int, default=0, help='Set to 1 to freeze the backbone (0 by default).')
+    parser.add_argument('--backbone', type=str, default='mobilenetv2', help='The network backbone: mobilenetv2 (default), resnet50')
+    parser.add_argument('--margin', type=float, default=0.4, help='The margin for the triple loss (default is 0.4).')
     parser.add_argument('--max-lr', type=float, default=1e-4, help='The maximum (and also initial) learning rate (1e-4 by default).')
     parser.add_argument('--min-lr', type=float, default=1e-5, help='The minimum learning rate (1e-5 by default).')
     parser.add_argument('--lr-schedule', type=str, default='cosine', help='The learning rate schedule: cosine (default), cyclic.')
@@ -99,24 +97,33 @@ def _main():
     # create the output directory if necessary
     if not os.path.exists(args.output_dir):
         os.makedirs(args.output_dir)  
-
+        
+    # scale the larning rate to the batch size
+    max_lr = args.max_lr
+    min_lr = args.min_lr
+        
     # create the model
-    from model import create_model
+    from model_triplet import create_model
     num_channels = 1 if args.backbone == 'siamese' else 3
-    model, model_body, encoder = create_model((args.image_size, args.image_size, num_channels), args.feature_vector_len, restart_checkpoint=args.restart_checkpoint, backbone=args.backbone, freeze=args.freeze_backbone==1, l2=args.use_l2==1)
+    encoder = create_model((args.image_size, args.image_size, num_channels), restart_checkpoint=args.restart_checkpoint, backbone=args.backbone)
 
-    print('\nThe model:')
+    # compile the model with the initial learning rate
+    from keras.optimizers import Adam
+    from keras.layers import Lambda
+    from keras.models import Model
+    from model_triplet import batch_hard_loss
+    bh_loss = Lambda(batch_hard_loss, output_shape=(1,), name='batch_hard', arguments={'loss_batch':(args.batch_size-1)//2, 'loss_margin':args.margin})(encoder.output)
+    model = Model(encoder.input, bh_loss)
+    model.compile(loss={'batch_hard': lambda y_true, y_pred: y_pred}, optimizer=Adam(lr=max_lr))
     print(model.summary())
 
+    
     # prepare the callbacks
     from lr_info import lr_info
     info_lr = lr_info(model, args.mlflow==1)
 
     # learning rate
 
-    # scale the larning rate to the batch size
-    max_lr = args.max_lr * np.sqrt(args.batch_size)
-    min_lr = args.min_lr * np.sqrt(args.batch_size)
 
     print('Scaling the learning rate minimum to {} and maximum (initial) to {}'.format(min_lr, max_lr))
     print('The original values are {} and {}, and are multiplied by the root of the batch size {}.'.format(args.min_lr, args.max_lr, args.batch_size))
@@ -124,7 +131,7 @@ def _main():
     if args.lr_schedule == 'cosine':
         print('Using the cosine annealing learning rate scheduler.')
         from cos_callback import CosineAnnealingScheduler
-        lr_callback = CosineAnnealingScheduler(max_lr, args.batch_size, args.lr_schedule_cycle, min_lr=min_lr, verbose=True, initial_counter=(args.start_epoch - 1) * args.images_per_epoch//args.batch_size)
+        lr_callback = CosineAnnealingScheduler(max_lr, 1, args.lr_schedule_cycle, min_lr=min_lr, verbose=True, initial_counter=(args.start_epoch - 1) * args.images_per_epoch)
     else:
         from clr_callback import CyclicLR
         lr_callback = CyclicLR(model='triangular', max_lr=maxlr, base_lr=min_lr, step_size=args.lr_schedule_cycle//args.batch_size)
@@ -134,7 +141,7 @@ def _main():
     checkpoint = MyModelCheckpoint(
         filepath=os.path.join(args.output_dir, args.checkpoint_name + '_' + '{epoch:04d}'),
         snapshot_path=os.path.join(args.output_dir, args.checkpoint_name+'-snapshot'),
-        model_body=model_body,
+        model_body=None,
         encoder = encoder,
         save_best_only=do_valid,
         period=args.checkpoint_freq,
@@ -148,10 +155,6 @@ def _main():
 
         callbacks.append(EarlyStopping(monitor='val_loss', patience=args.early_stopping_patience))
 
-    # compile the model with the initial learning rate
-    from keras.optimizers import Adam
-    model.compile(loss='binary_crossentropy', optimizer=Adam(lr=max_lr))
-        
     # train
     augment={
         'crop_prob':args.crop_prob,
@@ -186,9 +189,9 @@ def _main():
         val_generator = None
 
     model.fit_generator(train_generator,
-                        steps_per_epoch=max(1, args.images_per_epoch//args.batch_size),
+                        steps_per_epoch=max(1, args.images_per_epoch),
                         validation_data=val_generator,
-                        validation_steps=max(1, args.images_per_epoch//args.batch_size),
+                        validation_steps=max(1, args.images_per_epoch),
                         epochs=args.end_epoch,
                         initial_epoch=args.start_epoch-1,
                         callbacks=callbacks)
