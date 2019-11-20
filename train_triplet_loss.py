@@ -31,10 +31,12 @@ def _main():
     parser.add_argument('--output-dir', type=str, help='The output directory where the checkpoints will be stored.')
     parser.add_argument('--restart-checkpoint', type=str, default=None, help='The checkpoint from which to restart.')
     parser.add_argument('--image-size', type=int, default=224, help='The image size in pixels, default is 224 (meaning 224x224).')
-    parser.add_argument('--batch-size', type=int, default=14, help='The training minibatch size.')
-    parser.add_argument('--loss-batch', type=int, default=3, help='The loss minibatch size.')
+    parser.add_argument('--batch-size', type=int, default=24, help='The training minibatch size.')
+    parser.add_argument('--loss-batch', type=int, default=4, help='The loss minibatch size.')
     parser.add_argument('--backbone', type=str, default='mobilenetv2', help='The network backbone: mobilenetv2 (default), densenet121')
     parser.add_argument('--margin', type=float, default=0.4, help='The margin for the triple loss (default is 0.4).')
+    parser.add_argument('--soft', type=int, default=0, help='If set to 1, use soft margins when computing loss.')
+    parser.add_argument('--metric', type=str, default='euclidian', help='The distance metric: Euclidian (euclidian) or binary cross-entropy (binaryce). By fedault it is Euclidian.')
     parser.add_argument('--max-lr', type=float, default=1e-4, help='The maximum (and also initial) learning rate (1e-4 by default).')
     parser.add_argument('--min-lr', type=float, default=1e-5, help='The minimum learning rate (1e-5 by default).')
     parser.add_argument('--lr-schedule', type=str, default='cosine', help='The learning rate schedule: cosine (default), cyclic.')
@@ -113,7 +115,7 @@ def _main():
     from keras.layers import Lambda
     from keras.models import Model
     from model_triplet import batch_hard_loss
-    bh_loss = Lambda(batch_hard_loss, output_shape=(1,), name='batch_hard', arguments={'loss_batch':args.loss_batch, 'loss_margin':args.margin})(encoder.output)
+    bh_loss = Lambda(batch_hard_loss, output_shape=(1,), name='batch_hard', arguments={'loss_batch':args.loss_batch, 'loss_margin':args.margin, 'soft':args.soft==1, 'metric':args.metric})(encoder.output)
     model = Model(encoder.input, bh_loss)
     model.compile(loss={'batch_hard': lambda y_true, y_pred: y_pred}, optimizer=Adam(lr=max_lr))
     print(model.summary())

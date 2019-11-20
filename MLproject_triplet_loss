@@ -10,6 +10,8 @@ entry_points:
       loss-batch: {type: int, default: 4}
       backbone: {type: str, default: 'mobilenetv2'}
       margin: {type: float, default: 0.4}
+      soft: {type: int, default: 0}
+      metric: {type: soft, default: 'euclidian'}
       max-lr: {type: float, default: 1e-4}
       min-lr: {type: float, default: 1e-5}
       lr-schedule: {type: str, default: 'cosine'}
