@@ -19,7 +19,7 @@ def data_generator(imgs, batch_size, loss_batch, input_shape, same_prob, no_aug_
         images = []
         ground_truth = [1] * batch_size
         k = loss_batch
-        l = batch_size // (2 * loss_batch)
+        l = batch_size // loss_batch
 
         for ll in range(l):
             # store the anchor image
@@ -41,7 +41,7 @@ def data_generator(imgs, batch_size, loss_batch, input_shape, same_prob, no_aug_
             images.append(np.array(lbimg_a) / 255.0)
 
             # store the augmented positive examples
-            for j in range(k-1):
+            for j in range(k//4-1):
                 lbimg_p = LetterboxImage(img_a.copy())
                 aug_pos = np.random.random() >= no_aug_prob
                 if aug_pos:
@@ -59,7 +59,7 @@ def data_generator(imgs, batch_size, loss_batch, input_shape, same_prob, no_aug_
                 negs = np.random.choice(imgs, k)
                 negs_are_negs = not(imgs[i] in negs)
 
-            for j in range(k):
+            for j in range(k - k//4):
                 if conv=='L':
                     img_n = Image.open(negs[j]).convert(conv)
                 else:

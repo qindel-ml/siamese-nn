@@ -133,7 +133,7 @@ def _main():
     info_lr = lr_info(model, args.mlflow==1)
 
     # learning rate
-    true_batch_size = args.batch_size // (2 * args.loss_batch)
+    true_batch_size = args.batch_size // args.loss_batch
     
     print('Scaling the learning rate minimum to {} and maximum (initial) to {}'.format(min_lr, max_lr))
     if args.lr_schedule == 'cosine':
@@ -165,7 +165,9 @@ def _main():
 
     # train
     print('Batch configuration:')
-    print('Loss batch: 1 + {} - 1 + {} = {}'.format(args.loss_batch, args.loss_batch, 2 * args.loss_batch))
+    print('Loss batch: {}'.format(args.loss_batch))
+    print('Positives + anchors: {}'.format(args.loss_batch//4))
+    print('Negatives: {}'.format(args.loss_batch - args.loss_batch//4))
     print('Effective minibatch: {}'.format(true_batch_size))
     print('Encoder minibatch: {}'.format(args.batch_size))
     
