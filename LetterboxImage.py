@@ -23,14 +23,16 @@ class LetterboxImage(object):
         
         # resize image if necessary
         new_scale=min([sizew / curw, sizeh / curh])
-        target_w = int(curw * new_scale)
-        target_h = int(curh * new_scale)
+        target_w = min([sizew, int(curw * new_scale)])
+        target_h = min([sizeh, int(curh * new_scale)])
+        new_scale=min([target_w / curw, target_h / curh])
 
         if new_scale<1:
             self._img = self._img.resize((target_w, target_h), Image.BILINEAR)
         if new_scale>=1:
             self._img = self._img.resize((target_w, target_h), Image.NEAREST)
-        
+            
+        curw, curh = self._img.size
         # create the final image and fill it
         if self.colors_ == 'L':
             fill_color = 128
@@ -48,13 +50,12 @@ class LetterboxImage(object):
         else:
             dy = max([0, (sizeh - curh)//2])
 
-            
         new_img.paste(self._img, (dx, dy))
         self._img = new_img
         curw, curh = self._img.size
 
     
-    def do_augment(self, augment={}):
+    def do_augment(self, augment={}, greyscale=False):
         """
         Augment an image
         """
@@ -133,7 +134,7 @@ class LetterboxImage(object):
                 self._img = self._img.transpose(Image.FLIP_TOP_BOTTOM)
 
             dist_col = False
-            if self.colors_ == 'RGB':
+            if (self.colors_ == 'RGB') and (not greyscale):
                 if 'hue' in augment:
                     self.hue = flrand(-augment['hue'], augment['hue'])
                     dist_col = True

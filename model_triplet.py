@@ -1,7 +1,7 @@
 """
 This file implements an image similariy detectos. It takes a grayscale image as input and returns the probability that the images are different.
 """
-def create_model(image_shape=(224, 224, 3), restart_checkpoint=None, backbone='mobilnetv2'):
+def create_model(image_shape=(224, 224, 3), restart_checkpoint=None, backbone='mobilnetv2', feature_len=128, freeze=False):
     """
     Creates an image encoder.
 
@@ -9,6 +9,8 @@ def create_model(image_shape=(224, 224, 3), restart_checkpoint=None, backbone='m
         image_shape: input image shape (use [None, None] for resizable network)
         restart_checkpoint: snapshot to be restored
         backbone: the backbone CNN (one of mobilenetv2, siamese, resnet50)
+        feature_len: the length of the additional feature layer
+        freeze: freeze the backbone
     """
     # input tensors placeholders
     from keras.layers import Input
@@ -16,7 +18,7 @@ def create_model(image_shape=(224, 224, 3), restart_checkpoint=None, backbone='m
 
     # get the backbone
     backbone_name = backbone
-    from keras.layers import Concatenate, GlobalMaxPool2D, GlobalAvgPool2D
+    from keras.layers import Concatenate, GlobalMaxPool2D, GlobalAvgPool2D, BatchNormalization
     if backbone_name=='densenet121':
         print('Using DenseNet121 backbone.')
         from keras.applications.densenet import DenseNet121
@@ -26,9 +28,22 @@ def create_model(image_shape=(224, 224, 3), restart_checkpoint=None, backbone='m
         from keras.applications.mobilenet_v2 import MobileNetV2
         backbone = MobileNetV2(input_tensor=input_img, include_top=False)
 
-    from keras.layers import Activation
-    backbone = Concatenate(axis=-1)([GlobalMaxPool2D()(backbone.output), GlobalAvgPool2D()(backbone.output)])
+    backbone.layers.pop()
+    if freeze:
+        for layer in backbone.layers:
+            layer.trainable = False
+    backbone = backbone.output    
+
+    from keras.layers import Dense, Activation, Flatten, MaxPooling2D
+    backbone = MaxPooling2D((2, 2), 2)(backbone)
+    backbone = Flatten()(backbone)
+    backbone = Dense(feature_len*2)(backbone)
+    backbone = BatchNormalization()(backbone)
+    backbone = Activation('relu')(backbone)
+    backbone = Dense(feature_len)(backbone)
+    backbone = BatchNormalization()(backbone)
     backbone = Activation('sigmoid')(backbone)
+    
     
     from keras.models import Model
     encoder = Model(input_img, backbone)
@@ -54,11 +69,8 @@ def batch_hard_loss(outputs, loss_batch, loss_margin, soft=False, metric='euclid
     """
     import keras.backend as K
     
-    # group images by examples (each example contains 2 * loss_batch + 1 images)
+    # group images by examples (each example contains 2 * loss_batch images)
     examples = K.reshape(outputs, (-1, 2 * loss_batch, K.shape(outputs)[1]))
-
-    # get the true batch length
-    batch_len = K.cast(K.shape(examples)[0], K.dtype(outputs))
 
     # get the anchor image and expand the second dimension
     anchors = K.expand_dims(examples[:, 0, :], 1)
@@ -68,10 +80,10 @@ def batch_hard_loss(outputs, loss_batch, loss_margin, soft=False, metric='euclid
 
     if metric == 'euclidian':
         # compute the maximum positive distance
-        pos_dist = K.max(K.sqrt(K.sum(K.square(K.repeat_elements(anchors, loss_batch-1, axis=1) - positives), axis=2)))
+        pos_dist = K.max(K.mean(K.square(K.repeat_elements(anchors, loss_batch-1, axis=1) - positives), axis=2))
 
         # compute the minimum negative distance
-        neg_dist = K.min(K.sqrt(K.sum(K.square(K.repeat_elements(anchors, loss_batch, axis=1) - negatives), axis=2)))
+        neg_dist = K.min(K.mean(K.square(K.repeat_elements(anchors, loss_batch, axis=1) - negatives), axis=2))
     else:
         # compute the maximum positive distance
         pos_dist = K.max(K.mean(K.binary_crossentropy(K.repeat_elements(anchors, loss_batch-1, axis=1), positives), axis=2))
@@ -80,11 +92,13 @@ def batch_hard_loss(outputs, loss_batch, loss_margin, soft=False, metric='euclid
         neg_dist = K.min(K.mean(K.binary_crossentropy(K.repeat_elements(anchors, loss_batch, axis=1), negatives), axis=2))
 
     # compute the average true batch loss
+    #import tensorflow as tf
     if not soft:
-        loss = K.sum(K.maximum(loss_margin + pos_dist - neg_dist, 0)) / batch_len
+        import tensorflow as tf
+        loss = K.mean(K.maximum(loss_margin + pos_dist - neg_dist, 0))
     else:
         import tensorflow as tf
-        loss = K.sum(tf.math.log1p(K.exp(pos_dist - neg_dist))) / batch_len
+        loss = K.mean(tf.math.log1p(K.exp(pos_dist - neg_dist)))
 
     return loss
 

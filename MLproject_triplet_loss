@@ -6,9 +6,12 @@ entry_points:
   main:
     parameters:
       image-size: {type: int, default: 224}
+      greyscale: {type: int, default: 0}
       batch-size: {type: int, default: 24}
       loss-batch: {type: int, default: 4}
       backbone: {type: str, default: 'mobilenetv2'}
+      freeze-backbone: {type: int, default: 0}
+      feature-len: {type: int, default: 128}
       margin: {type: float, default: 0.4}
       soft: {type: int, default: 0}
       metric: {type: soft, default: 'euclidian'}
@@ -34,4 +37,4 @@ entry_points:
       hue: {type: float, default: 0.05}
       sat: {type: float, default: 0.2}
       val: {type: float, default: 0.2}
-    command: "./siamese-nn/train_triplet_loss.py  --mlflow 1 --image-size {image-size} --batch-size {batch-size} --loss-batch {loss-batch} --backbone {backbone} --margin {margin} --max-lr {max-lr} --min-lr {min-lr} --lr-schedule {lr-schedule} --lr-schedule-cycle {lr-schedule-cycle} --images-per-epoch {images-per-epoch} --start-epoch {start-epoch} --end-epoch {end-epoch} --checkpoint-name {checkpoint-name} --checkpoint-freq {checkpoint-freq} --early-stopping-patience {early-stopping-patience} --same-prob {same-prob} --no-aug-prob {no-aug-prob} --crop-prob {crop-prob} --crop-frac {crop-frac} --jitter-prob {jitter-prob} --jitter {jitter} --rot {rot} --hflip {hflip} --vflip {vflip} --hue {hue} --sat {sat} --val {val}"
+    command: "./siamese-nn/train_triplet_loss.py  --mlflow 1 --image-size {image-size} --greyscale {greyscale} --batch-size {batch-size} --loss-batch {loss-batch} --backbone {backbone} --freeze-backbone {freeze-backbone} --feature-len {feature-len} --margin {margin} --soft {soft} --metric {metric} --max-lr {max-lr} --min-lr {min-lr} --lr-schedule {lr-schedule} --lr-schedule-cycle {lr-schedule-cycle} --images-per-epoch {images-per-epoch} --start-epoch {start-epoch} --end-epoch {end-epoch} --checkpoint-name {checkpoint-name} --checkpoint-freq {checkpoint-freq} --early-stopping-patience {early-stopping-patience} --same-prob {same-prob} --no-aug-prob {no-aug-prob} --crop-prob {crop-prob} --crop-frac {crop-frac} --jitter-prob {jitter-prob} --jitter {jitter} --rot {rot} --hflip {hflip} --vflip {vflip} --hue {hue} --sat {sat} --val {val}"

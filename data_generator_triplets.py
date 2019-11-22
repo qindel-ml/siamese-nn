@@ -2,7 +2,7 @@ import numpy as np
 from PIL import Image
 from LetterboxImage import LetterboxImage
 
-def data_generator(imgs, batch_size, loss_batch, input_shape, same_prob, no_aug_prob, no_augment=False, augment={}):
+def data_generator(imgs, batch_size, loss_batch, input_shape, same_prob, no_aug_prob, no_augment=False, augment={}, greyscale=False):
 
     # initialize
     sizew = input_shape[0]
@@ -23,25 +23,58 @@ def data_generator(imgs, batch_size, loss_batch, input_shape, same_prob, no_aug_
 
         for ll in range(l):
             # store the anchor image
-            img_a = Image.open(imgs[i]).convert(conv)
-            lbimg_a = LetterboxImage(img_a)
-            lbimg_a.do_letterbox(sizew, sizeh, randomize_pos=False)
+            if conv=='L':
+                img_a = Image.open(imgs[i]).convert(conv)
+            else:
+                img_a = Image.open(imgs[i])
+
+                if greyscale:
+                    img_a = img_a.convert('L').convert('RGB')
+                
+            lbimg_a = LetterboxImage(img_a.copy())
+            aug_anchor = np.random.random() >= no_aug_prob
+            if aug_anchor:
+                targets = lbimg_a.do_augment(augment, greyscale=greyscale)
+            else:
+                targets = None
+            lbimg_a.do_letterbox(sizew, sizeh, randomize_pos=aug_anchor, targets=targets)
             images.append(np.array(lbimg_a) / 255.0)
 
             # store the augmented positive examples
             for j in range(k-1):
-                lbimg_p = LetterboxImage(img_a)
-                targets = lbimg_p.do_augment(augment)
-                lbimg_p.do_letterbox(sizew, sizeh, randomize_pos=True, targets=targets)
+                lbimg_p = LetterboxImage(img_a.copy())
+                aug_pos = np.random.random() >= no_aug_prob
+                if aug_pos:
+                    targets = lbimg_p.do_augment(augment, greyscale=greyscale)
+                else:
+                    targets = None
+                lbimg_p.do_letterbox(sizew, sizeh, randomize_pos=aug_pos, targets=targets)
                 images.append(np.array(lbimg_p) / 255.0)
 
             # store the negative examples
+
+            # get a random sample of k images and make sure that the anchor is not among them
+            negs_are_negs = False
+            while not(negs_are_negs):
+                negs = np.random.choice(imgs, k)
+                negs_are_negs = not(imgs[i] in negs)
+
             for j in range(k):
-                jj = (i + j + 1) % n
-                img_n = Image.open(imgs[jj]).convert(conv)
-                lbimg_n = LetterboxImage(img_n)
-                targets=lbimg_n.do_augment(augment)
-                lbimg_n.do_letterbox(sizew, sizeh, randomize_pos=True, targets=targets)
+                if conv=='L':
+                    img_n = Image.open(negs[j]).convert(conv)
+                else:
+                    img_n = Image.open(negs[j])
+                    
+                    if greyscale:
+                        img_n = img_n.convert('L').convert('RGB')
+                        
+                lbimg_n = LetterboxImage(img_n.copy())
+                aug_neg = np.random.random() >= no_aug_prob
+                if aug_neg:
+                    targets = lbimg_n.do_augment(augment, greyscale=greyscale)
+                else:
+                    targets = None
+                lbimg_n.do_letterbox(sizew, sizeh, randomize_pos=aug_neg, targets=targets)
                 images.append(np.array(lbimg_n) / 255.0)
 
             # advance to next image

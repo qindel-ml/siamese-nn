@@ -50,7 +50,7 @@ def _main():
             os.makedirs(args.paint_dir)
     
     # create the model
-    from model import create_model
+    from model_siamese import create_model
     model, _, _ = create_model((args.image_size, args.image_size, 1), args.feature_vector_len, restart_checkpoint=args.model, backbone=args.backbone)
     
     # compare the image pairs
