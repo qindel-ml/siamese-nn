@@ -1,6 +1,6 @@
 import numpy as np
 from PIL import Image
-from LetterboxImage import LetterboxImage
+from AugmentedLetterbox import AugmentedLetterbox
 
 def data_generator(imgs, batch_size, loss_batch, input_shape, same_prob, no_aug_prob, no_augment=False, augment={}, greyscale=False):
 
@@ -31,24 +31,16 @@ def data_generator(imgs, batch_size, loss_batch, input_shape, same_prob, no_aug_
                 if greyscale:
                     img_a = img_a.convert('L').convert('RGB')
                 
-            lbimg_a = LetterboxImage(img_a.copy())
+            lbimg_a = AugmentedLetterbox(img_a.copy())
             aug_anchor = np.random.random() >= no_aug_prob
-            if aug_anchor:
-                targets = lbimg_a.do_augment(augment, greyscale=greyscale)
-            else:
-                targets = None
-            lbimg_a.do_letterbox(sizew, sizeh, randomize_pos=aug_anchor, targets=targets)
+            lbimg_a.letterbox(sizew, sizeh, randomize_pos=aug_anchor, augments = augment if aug_anchor else None)
             images.append(np.array(lbimg_a) / 255.0)
 
             # store the augmented positive examples
             for j in range(k//4-1):
-                lbimg_p = LetterboxImage(img_a.copy())
+                lbimg_p = AugmentedLetterbox(img_a.copy())
                 aug_pos = np.random.random() >= no_aug_prob
-                if aug_pos:
-                    targets = lbimg_p.do_augment(augment, greyscale=greyscale)
-                else:
-                    targets = None
-                lbimg_p.do_letterbox(sizew, sizeh, randomize_pos=aug_pos, targets=targets)
+                lbimg_p.letterbox(sizew, sizeh, randomize_pos=aug_pos, augments = augment if aug_pos else None)
                 images.append(np.array(lbimg_p) / 255.0)
 
             # store the negative examples
@@ -68,13 +60,9 @@ def data_generator(imgs, batch_size, loss_batch, input_shape, same_prob, no_aug_
                     if greyscale:
                         img_n = img_n.convert('L').convert('RGB')
                         
-                lbimg_n = LetterboxImage(img_n.copy())
+                lbimg_n = AugmentedLetterbox(img_n.copy())
                 aug_neg = np.random.random() >= no_aug_prob
-                if aug_neg:
-                    targets = lbimg_n.do_augment(augment, greyscale=greyscale)
-                else:
-                    targets = None
-                lbimg_n.do_letterbox(sizew, sizeh, randomize_pos=aug_neg, targets=targets)
+                lbimg_n.letterbox(sizew, sizeh, randomize_pos=aug_neg, augments = augment if aug_neg else None)
                 images.append(np.array(lbimg_n) / 255.0)
 
             # advance to next image

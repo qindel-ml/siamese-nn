@@ -1,6 +1,6 @@
 import numpy as np
 from PIL import Image
-from LetterboxImage import LetterboxImage
+from AugmentedLetterbox import AugmentedLetterbox
 
 def data_generator(imgs, batch_size, input_shape, same_prob, no_aug_prob, no_augment=False, augment={}):
 
@@ -31,12 +31,8 @@ def data_generator(imgs, batch_size, input_shape, same_prob, no_aug_prob, no_aug
             
             # load and letterbox the first image
             img_a = Image.open(imgs[i]).convert(conv)
-            mimg_a = LetterboxImage(img_a)
-            if do_aug_l:
-                targets = mimg_a.do_augment(augment)
-            else:
-                targets = None
-            mimg_a.do_letterbox(sizew, sizeh, randomize_pos=not no_augment, targets=targets)
+            mimg_a = AugmentedLetterbox(img_a)
+            mimg_a.letterbox(sizew, sizeh, randomize_pos=not no_augment, augments = augment if do_aug_l else None)
             if conv=='L':
                 image_a.append(np.expand_dims(np.array(mimg_a) / 255.0, 2))
             else:
@@ -50,18 +46,14 @@ def data_generator(imgs, batch_size, input_shape, same_prob, no_aug_prob, no_aug
             else:
                 # choose the next image
                 img_b = Image.open(imgs[(i + 1) % n]).convert(conv)
-                mimg_b = LetterboxImage(img_b)
+                mimg_b = AugmentedLetterbox(img_b)
                 i = (i + 1) %n
 
             # letterbox the second image
             # decide if the right image is augmented
             do_aug_r =  (np.random.random() >= no_aug_prob) and do_aug_both
 
-            if do_aug_r:
-                targets = mimg_b.do_augment(augment)
-            else:
-                targets = None
-            mimg_b.do_letterbox(sizew, sizeh, randomize_pos=not no_augment, targets=targets)
+            mimg_b.letterbox(sizew, sizeh, randomize_pos=not no_augment, augments = augment if do_aur_r else None)
             if conv=='L':
                 image_b.append(np.expand_dims(np.array(mimg_b) / 255.0, 2))
             else:

@@ -31,10 +31,15 @@ entry_points:
       crop-frac: {type: float, default: 0.09}
       jitter-prob: {type: float, default: 0.2}
       jitter: {type: float, default: 0.1}
-      rot: {type: float, default: 0.0}
-      hflip: {type: float, default: 0.3}
+      rotation-prob: {type: float, default: 0.0}
+      rotation-angle: {type: float, default: 0.0}
+      rotation-expand-prob: {type: float, default: 0}
+      scale-prob: {type: float, default: 0.1}
+      scale-min: {type: float, default: 1.0}
+      scale-max: {type: float, default: 1.0}
+      hflip: {type: float, default: 0.0}
       vflip: {type: float, default: 0.0}
       hue: {type: float, default: 0.05}
       sat: {type: float, default: 0.2}
       val: {type: float, default: 0.2}
-    command: "./siamese-nn/train_triplet_loss.py  --mlflow 1 --image-size {image-size} --greyscale {greyscale} --batch-size {batch-size} --loss-batch {loss-batch} --backbone {backbone} --freeze-backbone {freeze-backbone} --feature-len {feature-len} --margin {margin} --soft {soft} --metric {metric} --max-lr {max-lr} --min-lr {min-lr} --lr-schedule {lr-schedule} --lr-schedule-cycle {lr-schedule-cycle} --images-per-epoch {images-per-epoch} --start-epoch {start-epoch} --end-epoch {end-epoch} --checkpoint-name {checkpoint-name} --checkpoint-freq {checkpoint-freq} --early-stopping-patience {early-stopping-patience} --same-prob {same-prob} --no-aug-prob {no-aug-prob} --crop-prob {crop-prob} --crop-frac {crop-frac} --jitter-prob {jitter-prob} --jitter {jitter} --rot {rot} --hflip {hflip} --vflip {vflip} --hue {hue} --sat {sat} --val {val}"
+    command: "./siamese-nn/train_triplet_loss.py  --mlflow 1 --image-size {image-size} --greyscale {greyscale} --batch-size {batch-size} --loss-batch {loss-batch} --backbone {backbone} --freeze-backbone {freeze-backbone} --feature-len {feature-len} --margin {margin} --soft {soft} --metric {metric} --max-lr {max-lr} --min-lr {min-lr} --lr-schedule {lr-schedule} --lr-schedule-cycle {lr-schedule-cycle} --images-per-epoch {images-per-epoch} --start-epoch {start-epoch} --end-epoch {end-epoch} --checkpoint-name {checkpoint-name} --checkpoint-freq {checkpoint-freq} --early-stopping-patience {early-stopping-patience} --same-prob {same-prob} --no-aug-prob {no-aug-prob} --crop-prob {crop-prob} --crop-frac {crop-frac} --jitter-prob {jitter-prob} --jitter {jitter} --rotation-prob {rotation-prob} --rotation-angle {rotation-angle} --rotation-expand-prob {rotation-expand-prob} --scale-prob {scale-prob} --scale-min {scale-min} --scale-max {scale-max} --hflip {hflip} --vflip {vflip} --hue {hue} --sat {sat} --val {val}"

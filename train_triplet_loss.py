@@ -17,7 +17,6 @@ import cv2
 from PIL import Image
 import argparse
 import numpy as np
-from LetterboxImage import LetterboxImage
 from data_generator_triplets import data_generator
 
 ##############################
@@ -56,9 +55,14 @@ def _main():
     parser.add_argument('--crop-frac', type=float, default=0.09, help='The maximum fraction of area cropped-out (0.16 by default).')
     parser.add_argument('--jitter-prob', type=float, default=0.2, help='The jitter probability (0.2 by default')
     parser.add_argument('--jitter', type=float, default=0.1, help='The jitter size (0.1 by default).')
-    parser.add_argument('--rot', type=float, default=0.0, help='The rotation probability (0.0 by default).')
+    parser.add_argument('--rotation-prob', type=float, default=0.0, help='The rotation probability.')
+    parser.add_argument('--rotation-angle', type=float, default=0.0, help='The maximum rotation angle.')
+    parser.add_argument('--rotation-expand-prob', type=float, default=0, help='Probability to expand the image when rotating to not lose anything.')
+    parser.add_argument('--scale-prob', type=float, default=0.1, help='The rescaling probability.')
+    parser.add_argument('--scale-min', type=float, default=1.0, help='The minimum image rescaling factor.')
+    parser.add_argument('--scale-max', type=float, default=1.0, help='The maximum image rescaling factor.')
     parser.add_argument('--hflip', type=float, default=0.0, help='The horizontal flip probability (0.0 by default).')
-    parser.add_argument('--vflip', type=float, default=0.3, help='The vertical flip probability (0.0 by default).')
+    parser.add_argument('--vflip', type=float, default=0.0, help='The vertical flip probability (0.0 by default).')
     parser.add_argument('--hue', type=float, default=0.05, help='The hue variation (ignored for siamese backbone).')
     parser.add_argument('--sat', type=float, default=0.2, help='The saturation variation (ignored for siamese backbone).')
     parser.add_argument('--val', type=float, default=0.2, help='The value variation (ignored for siamese backbone).')
@@ -172,16 +176,21 @@ def _main():
     print('Encoder minibatch: {}'.format(args.batch_size))
     
     augment={
+        'scale_prob':args.scale_prob,
+        'scale_min':args.scale_min,
+        'scale_max':args.scale_max,
         'crop_prob':args.crop_prob,
         'crop_frac':args.crop_frac,
         'jitter_prob':args.jitter_prob,
         'jitter':args.jitter,
-        'rot':args.rot,
-        'hflip':args.hflip,
-        'vflip':args.vflip,
+        'rotate_prob':args.rotation_prob,
+        'rotate_angle':args.rotation_angle,
+        'rotate_expand_prob':args.rotation_expand_prob,
+        'hflip_prob':args.hflip,
+        'vflip_prob':args.vflip,
         'hue':args.hue,
-        'sat':args.sat,
-        'val':args.val
+        'saturation':args.sat,
+        'value':args.val
     }
     
     train_generator = data_generator(train_imgs,
