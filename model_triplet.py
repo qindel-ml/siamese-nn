@@ -19,23 +19,25 @@ def create_model(image_shape=(224, 224, 3), restart_checkpoint=None, backbone='m
     # get the backbone
     backbone_name = backbone
     from keras.layers import Concatenate, GlobalMaxPool2D, GlobalAvgPool2D, BatchNormalization
-    if backbone_name=='densenet121':
+    if backbone_name == 'densenet121':
         print('Using DenseNet121 backbone.')
         from keras.applications.densenet import DenseNet121
         backbone = DenseNet121(input_tensor=input_img, include_top=False)
-    else:
+        backbone.layers.pop()
+    elif backbone.name == 'mobilenetv2':
         print('Using MobileNetV2 backbone.')    
         from keras.applications.mobilenet_v2 import MobileNetV2
         backbone = MobileNetV2(input_tensor=input_img, include_top=False)
+        backbone.layers.pop()
 
-    backbone.layers.pop()
+
     if freeze:
         for layer in backbone.layers:
             layer.trainable = False
     backbone = backbone.output    
 
+    # add the head layers
     from keras.layers import Dense, Activation, Flatten, MaxPooling2D
-    backbone = MaxPooling2D((2, 2), 2)(backbone)
     backbone = Flatten()(backbone)
     backbone = Dense(feature_len*2)(backbone)
     backbone = BatchNormalization()(backbone)

@@ -142,7 +142,7 @@ class AugmentedLetterbox(Letterbox):
             hue_factor = float_rand(-augments['hue'], augments['hue'])
             touch_colors = True
         else:
-            hue_factor = 1
+            hue_factor = 0
             
         if 'saturation' in augments:
             saturation_factor = float_rand(1, 1 + augments['saturation']) if prob_choice(0.5) else 1 / float_rand(1, 1 + augments['saturation'])
