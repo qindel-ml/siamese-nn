@@ -1,53 +1,68 @@
-"""
-This file implements an image similariy detectos. It takes a grayscale image as input and returns the probability that the images are different.
-"""
-def create_model(image_shape=(224, 224, 3), restart_checkpoint=None, backbone='mobilnetv2', feature_len=128, freeze=False):
+from keras.applications.densenet import DenseNet121
+from keras.applications.mobilenetv2 import MobileNetV2
+from keras.layers import Input, Dense, Activation, Flatten, MaxPooling2D, Conv2D, DepthwiseConv2D, BatchNormalization, Concatenate, GlobalMaxPool2D, GlobalAvgPool2D, Concatenate, Multiply, Average
+from keras.models import Model
+from custom_backbone import custom_backbone
+
+def create_model(
+        image_shape=(224, 224, 3),
+        restart_checkpoint=None,
+        backbone='mobilnetv2',
+        feature_len=128,
+        freeze=False
+):
     """
     Creates an image encoder.
 
     Args:
         image_shape: input image shape (use [None, None] for resizable network)
         restart_checkpoint: snapshot to be restored
-        backbone: the backbone CNN (one of mobilenetv2, siamese, resnet50)
+        backbone: the backbone CNN (one of mobilenetv2, densent121, custom)
         feature_len: the length of the additional feature layer
         freeze: freeze the backbone
     """
-    # input tensors placeholders
-    from keras.layers import Input
     input_img = Input(shape=image_shape)
-
-    # get the backbone
+    
+    # add the backbone
     backbone_name = backbone
-    from keras.layers import Concatenate, GlobalMaxPool2D, GlobalAvgPool2D, BatchNormalization
+
     if backbone_name == 'densenet121':
         print('Using DenseNet121 backbone.')
-        from keras.applications.densenet import DenseNet121
-        backbone = DenseNet121(input_tensor=input_img, include_top=False)
+        backbone = DenseNet121(
+            input_tensor=input_img,
+            include_top=False
+        )
         backbone.layers.pop()
-    elif backbone.name == 'mobilenetv2':
+        if freeze:
+            for layer in backbone.layers:
+                layer.trainable = False
+        backbone = backbone.output    
+    elif backbone_name == 'mobilenetv2':
         print('Using MobileNetV2 backbone.')    
-        from keras.applications.mobilenet_v2 import MobileNetV2
-        backbone = MobileNetV2(input_tensor=input_img, include_top=False)
+        backbone = MobileNetV2(
+            input_tensor=input_img,
+            include_top=False
+        )
         backbone.layers.pop()
-
-
-    if freeze:
-        for layer in backbone.layers:
-            layer.trainable = False
-    backbone = backbone.output    
-
+        if freeze:
+            for layer in backbone.layers:
+                layer.trainable = False
+        backbone = backbone.output    
+    elif backbone_name == 'custom':
+        backbone = custom_backbone(input_tensor=input_img)
+    else:
+        raise Exception('Unknown backbone: {}'.format(backbone_name))    
+    
     # add the head layers
-    from keras.layers import Dense, Activation, Flatten, MaxPooling2D
-    backbone = Flatten()(backbone)
-    backbone = Dense(feature_len*2)(backbone)
-    backbone = BatchNormalization()(backbone)
-    backbone = Activation('relu')(backbone)
+    gmax = GlobalMaxPool2D()(backbone)
+    gavg = GlobalAvgPool2D()(backbone)
+    gmul = Multiply()([gmax, gavg])
+    ggavg = Average()([gmax, gavg])
+    backbone = Concatenate()([gmax, gavg, gmul, ggavg])
     backbone = Dense(feature_len)(backbone)
     backbone = BatchNormalization()(backbone)
     backbone = Activation('sigmoid')(backbone)
     
-    
-    from keras.models import Model
     encoder = Model(input_img, backbone)
     
     if restart_checkpoint:
