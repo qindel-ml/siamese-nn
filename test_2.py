@@ -132,7 +132,7 @@ def paint_comparison(limg, limg_name, rimg, rimg_name, prob, output_dir):
     txt_size_a = cv2.getTextSize(limg_name, font, font_scale, font_width)
     txt_size_b = cv2.getTextSize(rimg_name, font, font_scale, font_width)
 
-    prob_text = 'Similarity estimate: ' + str(np.around(100 * prob, 1)) + '%'
+    prob_text = 'Distance: ' + str(np.around(prob, 2))
     prob_text_size = cv2.getTextSize(rimg_name, font, font_scale, font_width)
 
     # compute the final image dimensions
