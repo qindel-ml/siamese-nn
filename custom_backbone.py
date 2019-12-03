@@ -14,10 +14,13 @@ def custom_backbone(input_tensor):
     # blocks
     x = twoblocks(x, 128, 192, 64)
     x = MaxPooling2D((2, 2), strides=(2, 2))(x)
+    
     x = twoblocks(x, 192, 256, 96)
     x = MaxPooling2D((2, 2), strides=(2, 2))(x)
+    
     x = twoblocks(x, 256, 384, 128)
     x = MaxPooling2D((2, 2), strides=(2, 2))(x)
+    
     x = twoblocks(x, 384, 512, 384)
     x = MaxPooling2D((2, 2), strides=(2, 2))(x)
     x = twoblocks(x, 512, 768, 256)
@@ -35,9 +38,11 @@ def invblock(input_layer, expand, squeeze):
     y = Conv2D(expand, (1,1))(input_layer)
     y = BatchNormalization()(y)
     y = Activation('relu')(y)
+    
     y = DepthwiseConv2D((3,3), padding='same')(y)
     y = BatchNormalization()(y)
     y = Activation('relu')(y)
+
     y = Conv2D(squeeze, (1,1))(y)
     y = BatchNormalization()(y)
     # !!! no relu, the last is the linear bottleneck layer !!!
