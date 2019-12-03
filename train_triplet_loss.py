@@ -53,6 +53,7 @@ def _main():
     parser.add_argument('--no-aug-prob', type=float, default=0.2, help='The probability that an image is not augmented at all.')
     parser.add_argument('--crop-prob', type=float, default=0.05, help='The crop probability (0.05 by default).')
     parser.add_argument('--crop-frac', type=float, default=0.09, help='The maximum fraction of area cropped-out (0.16 by default).')
+    parser.add_argument('--fill-letterbox', type=int, default=0, help='Fill the letterbox (for small images')
     parser.add_argument('--jitter-prob', type=float, default=0.2, help='The jitter probability (0.2 by default')
     parser.add_argument('--jitter', type=float, default=0.1, help='The jitter size (0.1 by default).')
     parser.add_argument('--rotation-prob', type=float, default=0.0, help='The rotation probability.')
@@ -201,7 +202,8 @@ def _main():
                                      args.no_aug_prob,
                                      no_augment=False,
                                      augment=augment,
-                                     greyscale=args.greyscale==1)
+                                     greyscale=args.greyscale==1,
+                                     fill_letterbox=args.fill_letterbox==1)
 
     if do_valid:
         val_generator = data_generator(val_imgs,
@@ -212,7 +214,8 @@ def _main():
                                        args.no_aug_prob,
                                        no_augment=False,
                                        augment=augment,
-                                       greyscale=args.greyscale==1)
+                                       greyscale=args.greyscale==1,
+                                       fill_letterbox=args.fill_letterbox==1)
     else:
         val_generator = None
 
