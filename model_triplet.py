@@ -1,8 +1,10 @@
-from keras.applications.densenet import DenseNet121
-from keras.applications.mobilenetv2 import MobileNetV2
-from keras.layers import Input, Dense, Activation, Flatten, MaxPooling2D, Conv2D, DepthwiseConv2D, BatchNormalization, Concatenate, GlobalMaxPool2D, GlobalAvgPool2D, Concatenate, Multiply, Average
-from keras.models import Model
+from tensorflow.keras.applications.densenet import DenseNet121
+from tensorflow.keras.applications.mobilenet_v2 import MobileNetV2
+from tensorflow.keras.layers import Input, Dense, Activation, BatchNormalization, GlobalMaxPool2D, \
+    GlobalAvgPool2D, Concatenate, Multiply, Average
+from tensorflow.keras.models import Model
 from custom_backbone import custom_backbone
+
 
 def create_model(
         image_shape=(224, 224, 3),
@@ -71,12 +73,14 @@ def create_model(
         
     return encoder
 
+
 def batch_hard_loss(outputs, loss_batch, loss_margin, soft=False, metric='euclidian'):
     """
-    An implementation of the batch hard loss (eq. 5 from arXiv:1703.07737 "In Defense of the Triplet Loss for Person Re-Identification" by Hermans, Beyer & Leibe)
+    An implementation of the batch hard loss (eq. 5 from arXiv:1703.07737 "In Defense of the Triplet Loss for Person
+    Re-Identification" by Hermans, Beyer & Leibe)
 
     Args:
-       outputs: the encoded features. It is expected that the batch size of the outputs tensor is a multiple of loss_batch
+       outputs: the encoded features. We expecte that the batch size of the outputs tensor is a multiple of loss_batch
        loss_batch: the size of the minibatch for the loss function
        loss_margin: the margin for the triple loss formula (m in the paper)
        soft: use soft margin, i.e. log(1+exp(distance))
@@ -84,7 +88,7 @@ def batch_hard_loss(outputs, loss_batch, loss_margin, soft=False, metric='euclid
     Returns:
         the batch hard loss
     """
-    import keras.backend as K
+    import tensorflow.keras.backend as K
     
     # group images by examples (each example contains loss_batch images)
     examples = K.reshape(outputs, (-1, loss_batch, K.shape(outputs)[1]))
@@ -92,26 +96,55 @@ def batch_hard_loss(outputs, loss_batch, loss_margin, soft=False, metric='euclid
     # get the anchor image and expand the second dimension
     anchors = K.expand_dims(examples[:, 0, :], 1)
 
-    positives = examples[:, 1:loss_batch//4, :] # the next loss_batch-1 images are positives
-    negatives = examples[:, loss_batch//4: , :] # the last loss_batch images are nagatives
+    positives = examples[:, 1:loss_batch//4, :]  # the next loss_batch-1 images are positives
+    negatives = examples[:, loss_batch//4:, :]  # the last loss_batch images are nagatives
 
     if metric == 'euclidian':
         # compute the maximum positive distance
-        pos_dist = K.max(K.mean(K.square(K.repeat_elements(anchors, loss_batch//4-1, axis=1) - positives), axis=2))
+        pos_dist = \
+            K.max(
+                K.mean(
+                    K.square(
+                        K.repeat_elements(anchors, loss_batch//4-1, axis=1) - positives
+                    ),
+                    axis=2
+                )
+            )
 
         # compute the minimum negative distance
-        neg_dist = K.min(K.mean(K.square(K.repeat_elements(anchors, loss_batch-loss_batch//4, axis=1) - negatives), axis=2))
+        neg_dist = \
+            K.min(
+                K.mean(
+                    K.square(
+                        K.repeat_elements(anchors, loss_batch-loss_batch//4, axis=1) - negatives
+                    ),
+                    axis=2
+                )
+            )
     else:
         # compute the maximum positive distance
-        pos_dist = K.max(K.mean(K.binary_crossentropy(K.repeat_elements(anchors, loss_batch//4-1, axis=1), positives), axis=2))
+        pos_dist = \
+            K.max(
+                K.mean(
+                    K.binary_crossentropy(
+                        K.repeat_elements(anchors, loss_batch//4-1, axis=1), positives
+                    ),
+                    axis=2
+                )
+            )
 
         # compute the minimum negative distance
-        neg_dist = K.min(K.mean(K.binary_crossentropy(K.repeat_elements(anchors, loss_batch-loss_batch//4, axis=1), negatives), axis=2))
+        neg_dist = \
+            K.min(
+                K.mean(
+                    K.binary_crossentropy(
+                        K.repeat_elements(anchors, loss_batch-loss_batch//4, axis=1), negatives
+                    ), axis=2
+                )
+            )
 
     # compute the average true batch loss
-    #import tensorflow as tf
     if not soft:
-        import tensorflow as tf
         loss = K.mean(K.maximum(loss_margin + pos_dist - neg_dist, 0))
     else:
         import tensorflow as tf

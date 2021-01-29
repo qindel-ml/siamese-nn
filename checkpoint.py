@@ -1,14 +1,8 @@
-"""
-This class is a modified keras.callbacks.ModelCheckpoint. It accepts several additional parameters and saves the checkpoint regardless of the monitor.
-"""
-
-
-import os
-from keras.callbacks import Callback
-import tensorflow as tf
-import shutil
-import json
+"""This class is a modified keras.callbacks.ModelCheckpoint. It accepts several additional parameters and saves the
+checkpoint regardless of the monitor. """
+from tensorflow.keras.callbacks import Callback
 import numpy as np
+
 
 class MyModelCheckpoint(Callback):
 
@@ -38,8 +32,6 @@ class MyModelCheckpoint(Callback):
         self.mlflow = mlflow
         
         if mode not in ['auto', 'min', 'max']:
-            logging.warning('MyModelCheckpoint mode %s is unknown, '
-                            'fallback to auto mode.', mode)
             mode = 'auto'
             
         if mode == 'min':
@@ -61,7 +53,8 @@ class MyModelCheckpoint(Callback):
         self.epochs_since_last_save += 1
         saved = False
 
-        if (not self.absolute_counter and self.epochs_since_last_save >= self.period) or (self.absolute_counter and (epoch+1)%self.period==0):
+        if (not self.absolute_counter and self.epochs_since_last_save >= self.period) or \
+                (self.absolute_counter and (epoch+1) % self.period == 0):
             self.epochs_since_last_save = 0
             filepath = self.filepath.format(epoch=epoch + 1, **logs)
         else:
@@ -71,10 +64,7 @@ class MyModelCheckpoint(Callback):
             if self.save_best_only:
                 current = logs.get(self.monitor)
 
-                if current is None:
-                    logging.warning('Can save best model only with %s available, '
-                                    'skipping.', self.monitor)
-                else:
+                if current is not None:
                     if self.monitor_op(current, self.best):
                         if self.verbose > 0:
                             print('\nEpoch %05d: %s improved from %0.5f to %0.5f,'
@@ -102,8 +92,6 @@ class MyModelCheckpoint(Callback):
                     if self.model_body:
                         self.model_body.save_weights(filepath+'-weights.h5', overwrite=True)
 
-
-
         if self.mlflow and self.save_best_only:
             import mlflow
             mlflow.log_metric("best_val_loss", self.best, epoch)
@@ -115,4 +103,3 @@ class MyModelCheckpoint(Callback):
                 if self.model_body:
                     mlflow.log_artifact(filepath + '-weights.h5')
                 mlflow.log_artifact(filepath + '-encoder.h5')
-                

@@ -3,8 +3,8 @@ Based on https://github.com/4uiiurz1/keras-cosine-annealing/blob/master/cosine_a
 """
 
 import math
-from keras.callbacks import Callback
-from keras import backend as K
+from tensorflow.keras.callbacks import Callback
+from tensorflow.keras import backend as K
 
 
 class CosineAnnealingScheduler(Callback):
@@ -33,7 +33,7 @@ class CosineAnnealingScheduler(Callback):
 
         self.counter += 1
         
-        if self.counter%50 == 0:
+        if self.counter % 50 == 0:
         
             if not hasattr(self.model.optimizer, 'lr'):
                 raise ValueError('Optimizer must have a "lr" attribute.')
@@ -41,5 +41,3 @@ class CosineAnnealingScheduler(Callback):
             self.x = min([math.pi, (self.counter / self.half_period) * math.pi])
             self.lr = self.min_lr + (self.initial_lr - self.min_lr) * (1.0 + math.cos(self.x)) / 2.0
             K.set_value(self.model.optimizer.lr, self.lr)
-
-
