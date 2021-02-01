@@ -1,8 +1,8 @@
-import keras
 from PIL import Image
 from Letterbox import Letterbox
 import numpy as np
 from tqdm import tqdm
+from tensorflow.keras.models import load_model
 
 def encode_images(model_path, images, letterbox_size=224, verbose=False, onlyhor=False, fill=False):
     """
@@ -21,7 +21,7 @@ def encode_images(model_path, images, letterbox_size=224, verbose=False, onlyhor
         each array row corresponding to an image orientation
     """
     
-    model = keras.models.load_model(model_path)
+    model = load_model(model_path)
     return encode_(
         model=model,
         images=images,
