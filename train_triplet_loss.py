@@ -2,6 +2,7 @@
 import os
 import argparse
 import numpy as np
+import pandas as pd
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.layers import Lambda
 from tensorflow.keras.models import Model
@@ -12,16 +13,20 @@ from lr_info import lr_info
 from cos_callback import CosineAnnealingScheduler
 from clr_callback import CyclicLR
 from checkpoint import MyModelCheckpoint
-
+from load_data import load_data
+from tensorflow import config
+physical_devices = config.list_physical_devices('GPU')
+config.experimental.set_memory_growth(physical_devices[0], True)
 
 def _main():
     # argument parsing
     parser = argparse.ArgumentParser(description='Trains an image similarity detector.')
-    parser.add_argument('--training-images-dir', type=str, help='The training images directory or a list (.txt '
-                                                                'extension).')
+    parser.add_argument('--training-images-dir', type=str, help='The directory containing the training images'
+                                                                'input files (JSON).')
     parser.add_argument('--validation-images-dir', type=str, default=None,
-                        help='The validation images directory or a list (.txt extension). '
+                        help='The directory containing the validation images input files.'
                              'If not specified, than no validation is performed (default behavior).')
+    parser.add_argument('--images-dir', type=str, help='The root of the images directory.')
     parser.add_argument('--output-dir', type=str, help='The output directory where the checkpoints will be stored.')
     parser.add_argument('--restart-checkpoint', type=str, default=None, help='The checkpoint from which to restart.')
     parser.add_argument('--image-size', type=int, default=224,
@@ -60,7 +65,7 @@ def _main():
                         help='The probability of comparing to the same image (0.5 by default).')
     parser.add_argument('--no-aug-prob', type=float, default=0.2,
                         help='The probability that an image is not augmented at all.')
-    parser.add_argument('--crop-prob', type=float, default=0.05, help='The crop probability (0.05 by default).')
+    parser.add_argument('--crop-prob', type=float, default=0.0, help='The crop probability (0.05 by default).')
     parser.add_argument('--crop-frac', type=float, default=0.09,
                         help='The maximum fraction of area cropped-out (0.16 by default).')
     parser.add_argument('--fill-letterbox', type=int, default=0, help='Fill the letterbox (for small images')
@@ -74,6 +79,7 @@ def _main():
     parser.add_argument('--scale-min', type=float, default=1.0, help='The minimum image rescaling factor.')
     parser.add_argument('--scale-max', type=float, default=1.0, help='The maximum image rescaling factor.')
     parser.add_argument('--hflip', type=float, default=0.0, help='The horizontal flip probability (0.0 by default).')
+    parser.add_argument('--no-colour-transforms', type=int, default=0, help='Do not transform colors.')
     parser.add_argument('--vflip', type=float, default=0.0, help='The vertical flip probability (0.0 by default).')
     parser.add_argument('--hue', type=float, default=0.05, help='The hue variation (ignored for siamese backbone).')
     parser.add_argument('--sat', type=float, default=0.2,
@@ -92,36 +98,43 @@ def _main():
     # allowed image extensions
     exts = ('.jpg', '.JPG', '.jpeg', '.JPEG', '.png', '.PNG', '.gif', '.GIF', '.tiff', '.TIFF', '.TIF', '.bmp', '.BMP')
 
-    # create the image lists
-    if args.training_images_dir.endswith('.txt'):
-        # load from list
-        with open(args.training_images_dir, 'r') as inpf:
-            train_dir_files = inpf.readlines()
-    else:
-        # load from directory
-        train_imgs = []
-        train_dir_files = os.listdir(args.training_images_dir)
+    # create the training image list
+    train_data = load_data(args.training_images_dir, verbose=False)
+    train_imgs = {}
+    for x in train_data:
+        cur_id = x['parent_id']
+        cur_path = os.path.join(args.images_dir, x['path'])
+        if cur_id in train_imgs:
+            train_imgs[cur_id].append(cur_path)
+        else:
+            train_imgs[cur_id] = [cur_path]
+    train_parents = list(train_imgs.keys())
+    np.random.shuffle(train_parents)
 
-    for f in train_dir_files:
-        if f.endswith(exts):
-            train_imgs.append(os.path.join(args.training_images_dir, f))
-
-    np.random.shuffle(train_imgs)
+    train_lens = {}
+    for k, v in train_imgs.items():
+        cur_len = len(v)
+        if cur_len in train_lens:
+            train_lens[cur_len] += 1
+        else:
+            train_lens[cur_len] = 1
+    train_lens = pd.DataFrame(train_lens, index = [0])
+    print("Training length distribution:")
+    print(train_lens)
 
     if args.validation_images_dir:
         do_valid = True
-        val_imgs = []
-        if args.validation_images_dir.endswith('.txt'):
-            with open(args.validation_images_dir, 'r') as inpf:
-                val_dir_files = inpf.readlines()
-        else:
-            val_dir_files = os.listdir(args.validation_images_dir)
-
-        for f in val_dir_files:
-            if f.endswith(exts):
-                val_imgs.append(os.path.join(args.validation_images_dir, f))
-
-        np.random.shuffle(val_imgs)
+        val_data = load_data(args.validation_images_dir, verbose=False)
+        val_imgs = {}
+        for x in val_data:
+            cur_id = x['parent_id']
+            cur_path = os.path.join(args.images_dir, x['path'])
+            if cur_id in val_imgs:
+                val_imgs[cur_id].append(cur_path)
+            else:
+                val_imgs[cur_id] = [cur_path]
+        val_parents = list(val_imgs.keys())
+        np.random.shuffle(val_parents)
     else:
         do_valid = False
 
@@ -206,13 +219,15 @@ def _main():
         'rotate_angle': args.rotation_angle,
         'rotate_expand_prob': args.rotation_expand_prob,
         'hflip_prob': args.hflip,
-        'vflip_prob': args.vflip,
-        'hue': args.hue,
-        'saturation': args.sat,
-        'value': args.val
+        'vflip_prob': args.vflip
     }
+    if (args.no_colour_transforms == 0):
+        augment['hue']: args.hue
+        augment['saturation']: args.sat
+        augment['value']: args.val
 
     train_generator = data_generator(train_imgs,
+                                     train_parents,
                                      args.batch_size,
                                      args.loss_batch,
                                      (args.image_size, args.image_size, num_channels),
@@ -225,6 +240,7 @@ def _main():
 
     if do_valid:
         val_generator = data_generator(val_imgs,
+                                       val_parents,
                                        args.batch_size,
                                        args.loss_batch,
                                        (args.image_size, args.image_size, num_channels),
@@ -238,12 +254,12 @@ def _main():
         val_generator = None
 
     model.fit_generator(train_generator,
-                        steps_per_epoch=max(1, args.images_per_epoch // true_batch_size),
-                        validation_data=val_generator,
-                        validation_steps=max(1, args.images_per_epoch // true_batch_size),
-                        epochs=args.end_epoch,
-                        initial_epoch=args.start_epoch - 1,
-                        callbacks=callbacks)
+                steps_per_epoch=max(1, args.images_per_epoch // true_batch_size),
+                validation_data=val_generator,
+                validation_steps=max(1, args.images_per_epoch // true_batch_size),
+                epochs=args.end_epoch,
+                initial_epoch=args.start_epoch - 1,
+                callbacks=callbacks)
 
 
 ##############################

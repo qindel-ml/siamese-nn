@@ -2,7 +2,7 @@
 Copied from: https://github.com/bckenstler/CLR/blob/master/clr_callback.py#L1
 """
 
-from keras.callbacks import *
+from tensorflow.keras.callbacks import *
 import numpy as np
 import tensorflow.keras.backend as K
 

@@ -1,5 +1,5 @@
-from keras.callbacks import Callback
-import keras.backend as K
+from tensorflow.keras.callbacks import Callback
+import tensorflow.keras.backend as K
 
 class lr_info(Callback):
 
@@ -9,13 +9,11 @@ class lr_info(Callback):
         
     def on_epoch_end(self, epoch, logs={}):
         
-        sess = K.get_session()
-        
         lr = self.model.optimizer.lr
         
-        cur_lr = sess.run([lr])
-        print('Current learning rate: {}'.format(cur_lr[0]))
+        cur_lr = K.eval(lr)
+        print('Current learning rate: {}'.format(cur_lr))
 
         if self.mlflow:
             import mlflow
-            mlflow.log_metric('learning_rate', cur_lr[0], epoch + 1)
+            mlflow.log_metric('learning_rate', cur_lr, epoch + 1)

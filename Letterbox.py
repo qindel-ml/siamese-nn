@@ -33,14 +33,14 @@ class Letterbox(object):
         
         # rescale the image if it is too large
         if scale < 1:
-            self._img = self._img.resize((int(scale * self._img.width), int(scale * self._img.height)), Image.BILINEAR)
+            self._img = self._img.resize((int(scale * self._img.width + 0.5), int(scale * self._img.height + 0.5)), Image.BILINEAR)
             scale_ = scale
 
         else:
             # rescale the image if it is too small and the letterbox should be filled
             if fill_letterbox:
                 self._img = self._img.resize(
-                    (int(scale * self._img.width), int(scale * self._img.height)),
+                    (int(scale * self._img.width + 0.5), int(scale * self._img.height + 0.5)),
                     Image.NEAREST
                 )
                 scale_ = scale

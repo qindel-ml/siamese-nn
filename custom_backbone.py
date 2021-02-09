@@ -1,6 +1,6 @@
 from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.layers import Dense, Activation, Flatten, MaxPooling2D, Conv2D, DepthwiseConv2D, BatchNormalization, Add, ZeroPadding2D
-from tensorflow.keras_applications import correct_pad
+from keras_applications import correct_pad
 import keras.backend as K
 
 def custom_backbone(input_tensor):

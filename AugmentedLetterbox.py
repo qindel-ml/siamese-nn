@@ -40,7 +40,7 @@ class AugmentedLetterbox(Letterbox):
             randomize_pos=randomize_pos,
             fill_letterbox=fill_letterbox
         )
-        
+
         # colour augmentation
         if augments:
             self.col_aug(augments)
@@ -153,21 +153,24 @@ class AugmentedLetterbox(Letterbox):
         touch_colors = False
         if 'hue' in augments:
             hue_factor = float_rand(-augments['hue'], augments['hue'])
-            touch_colors = True
+            if hue_factor > 1e-6:
+                touch_colors = True
         else:
             hue_factor = 0
             
         if 'saturation' in augments:
             saturation_factor = float_rand(1, 1 + augments['saturation']) if prob_choice(0.5) else \
                 1 / float_rand(1, 1 + augments['saturation'])
-            touch_colors = True
+            if np.abs(saturation_factor - 1) > 1e-6:
+                touch_colors = True
         else:
             saturation_factor = 1
             
         if 'value' in augments:
             value_factor = float_rand(1, 1 + augments['value']) if prob_choice(0.5) else \
                 1 / float_rand(1, 1 + augments['saturation'])
-            touch_colors = True
+            if np.abs(value_factor - 1) > 1e-6:
+                touch_colors = True
         else:
             value_factor = 1
 
