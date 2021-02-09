@@ -12,7 +12,7 @@ def data_generator(imgs, parents, batch_size, loss_batch, input_shape, same_prob
     conv = 'L' if input_shape[2] == 1 else 'RGB'
 
     n = len(parents)
-
+    np.random.shuffle(parents)
     # infinite loop of the generator
     i = 0
     while True:
@@ -68,7 +68,7 @@ def data_generator(imgs, parents, batch_size, loss_batch, input_shape, same_prob
             # advance to next image
             i = (i + 1) % n
             if i == 0:
-                np.random.shuffle(imgs)
+                np.random.shuffle(parents)
                 
         # return the batch
         images = np.stack(images)
