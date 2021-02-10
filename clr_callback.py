@@ -94,6 +94,8 @@ class CyclicLR(Callback):
 
         self._reset()
 
+        self.batches_skipped = 0
+
     def _reset(self, new_base_lr=None, new_max_lr=None,
                new_step_size=None):
         """Resets cycle iterations.
@@ -126,6 +128,11 @@ class CyclicLR(Callback):
 
     def on_batch_end(self, epoch, logs=None):
 
+        self.batches_skipped += 1
+        if self.batches_skipped < 50:
+            return
+        else:
+            self.batches_skipped = 0
         logs = logs or {}
         self.trn_iterations += 1
         self.clr_iterations += 1

@@ -33,7 +33,7 @@ class CosineAnnealingScheduler(Callback):
 
         self.counter += 1
         
-        if self.counter % 50 == 0:
+        if self.counter % 1000 == 500:
         
             if not hasattr(self.model.optimizer, 'lr'):
                 raise ValueError('Optimizer must have a "lr" attribute.')
