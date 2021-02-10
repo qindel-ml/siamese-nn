@@ -4,6 +4,7 @@ from tensorflow.keras.layers import Input, Dense, Activation, BatchNormalization
     GlobalAvgPool2D, Concatenate, Multiply, Average
 from tensorflow.keras.models import Model
 from custom_backbone import custom_backbone
+import tensorflow.keras.backend as K
 
 
 def create_model(
@@ -24,7 +25,7 @@ def create_model(
         freeze: freeze the backbone
     """
     input_img = Input(shape=image_shape)
-    
+
     # add the backbone
     backbone_name = backbone
 
@@ -38,9 +39,9 @@ def create_model(
         if freeze:
             for layer in backbone.layers:
                 layer.trainable = False
-        backbone = backbone.output    
+        backbone = backbone.output
     elif backbone_name == 'mobilenetv2':
-        print('Using MobileNetV2 backbone.')    
+        print('Using MobileNetV2 backbone.')
         backbone = MobileNetV2(
             input_tensor=input_img,
             include_top=False
@@ -49,13 +50,13 @@ def create_model(
         if freeze:
             for layer in backbone.layers:
                 layer.trainable = False
-        backbone = backbone.output    
+        backbone = backbone.output
     elif backbone_name == 'custom':
         backbone = custom_backbone(input_tensor=input_img)
     else:
-        raise Exception('Unknown backbone: {}'.format(backbone_name))    
-    
-    # add the head layers
+        raise Exception('Unknown backbone: {}'.format(backbone_name))
+
+        # add the head layers
     gmax = GlobalMaxPool2D()(backbone)
     gavg = GlobalAvgPool2D()(backbone)
     gmul = Multiply()([gmax, gavg])
@@ -64,14 +65,26 @@ def create_model(
     backbone = Dense(feature_len)(backbone)
     backbone = BatchNormalization()(backbone)
     backbone = Activation('sigmoid')(backbone)
-    
+
     encoder = Model(input_img, backbone)
-    
+
     if restart_checkpoint:
         print('Loading weights from {}'.format(restart_checkpoint))
         encoder.load_weights(restart_checkpoint, by_name=True, skip_mismatch=True)
-        
+
     return encoder
+
+
+def calculate_dist(optimization, metric, anchors, batch, group):
+    result = optimization(
+        K.mean(
+            metric(
+                K.repeat_elements(anchors, batch, axis=1), group
+            ),
+            axis=2
+        )
+    )
+    return result
 
 
 def batch_hard_loss(outputs, loss_batch, loss_margin, soft=False, metric='euclidian'):
@@ -88,60 +101,31 @@ def batch_hard_loss(outputs, loss_batch, loss_margin, soft=False, metric='euclid
     Returns:
         the batch hard loss
     """
-    import tensorflow.keras.backend as K
-    
+
     # group images by examples (each example contains loss_batch images)
     examples = K.reshape(outputs, (-1, loss_batch, K.shape(outputs)[1]))
 
     # get the anchor image and expand the second dimension
     anchors = K.expand_dims(examples[:, 0, :], 1)
 
-    positives = examples[:, 1:loss_batch//4, :]  # the next loss_batch-1 images are positives
-    negatives = examples[:, loss_batch//4:, :]  # the last loss_batch images are nagatives
+    positives = examples[:, 1:loss_batch // 4, :]  # the next loss_batch-1 images are positives
+    negatives = examples[:, loss_batch // 4:, :]  # the last loss_batch images are nagatives
 
     if metric == 'euclidian':
         # compute the maximum positive distance
-        pos_dist = \
-            K.max(
-                K.mean(
-                    K.square(
-                        K.repeat_elements(anchors, loss_batch//4-1, axis=1) - positives
-                    ),
-                    axis=2
-                )
-            )
+        pos_dist = calculate_dist(K.max, K.square, anchors, loss_batch // 4 - 1, positives)
 
         # compute the minimum negative distance
         neg_dist = \
-            K.min(
-                K.mean(
-                    K.square(
-                        K.repeat_elements(anchors, loss_batch-loss_batch//4, axis=1) - negatives
-                    ),
-                    axis=2
-                )
-            )
+            calculate_dist(K.min, K.square, anchors, loss_batch - loss_batch // 4, negatives)
+
     else:
         # compute the maximum positive distance
         pos_dist = \
-            K.max(
-                K.mean(
-                    K.binary_crossentropy(
-                        K.repeat_elements(anchors, loss_batch//4-1, axis=1), positives
-                    ),
-                    axis=2
-                )
-            )
-
+            calculate_dist(K.max, K.binary_crossentropy, anchors, loss_batch // 4 - 1, positives)
         # compute the minimum negative distance
         neg_dist = \
-            K.min(
-                K.mean(
-                    K.binary_crossentropy(
-                        K.repeat_elements(anchors, loss_batch-loss_batch//4, axis=1), negatives
-                    ), axis=2
-                )
-            )
+            calculate_dist(K.min, K.binary_crossentropy, anchors, loss_batch - loss_batch // 4, negatives)
 
     # compute the average true batch loss
     if not soft:
@@ -151,5 +135,3 @@ def batch_hard_loss(outputs, loss_batch, loss_margin, soft=False, metric='euclid
         loss = K.mean(tf.math.log1p(K.exp(pos_dist - neg_dist)))
 
     return loss
-
-    

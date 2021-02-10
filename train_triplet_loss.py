@@ -16,8 +16,47 @@ from checkpoint import MyModelCheckpoint
 from load_data import load_data
 from tensorflow import config
 from cache import preload_images
+
 physical_devices = config.list_physical_devices('GPU')
 config.experimental.set_memory_growth(physical_devices[0], True)
+
+
+def correct_file(x_path, cur_path):
+    # allowed image extensions
+    exts = ('.jpg', '.JPG', '.jpeg', '.JPEG', '.png', '.PNG', '.gif', '.GIF', '.tiff', '.TIFF', '.TIF', '.bmp', '.BMP')
+
+    if not x_path.endswith(exts):
+        print("{} file has not an acceptable extension".format(x_path))
+        return False
+    elif not os.path.isfile(cur_path):
+        print("{} was not found".format(cur_path))
+        return False
+    # Abrir imagen correctamente
+    from PIL import Image
+    try:
+        img = Image.open(cur_path)
+        img.verify()
+        img.close()
+    except:
+        print("{} is corrupted".format(cur_path))
+
+    return True
+
+
+def generate_dictionary(data, args):
+    data_imgs = {}
+    for x in data:
+        cur_id = x['parent_id']
+        x_path = x['path']
+        cur_path = os.path.join(args.images_dir, x_path)
+        if not correct_file(x_path, cur_path):
+            continue
+        if cur_id in data_imgs:
+            data_imgs[cur_id].append(cur_path)
+        else:
+            data_imgs[cur_id] = [cur_path]
+    return data_imgs
+
 
 def _main():
     # argument parsing
@@ -98,19 +137,9 @@ def _main():
         import mlflow.keras
         mlflow.keras.autolog()
 
-    # allowed image extensions
-    exts = ('.jpg', '.JPG', '.jpeg', '.JPEG', '.png', '.PNG', '.gif', '.GIF', '.tiff', '.TIFF', '.TIF', '.bmp', '.BMP')
-
     # create the training image list
     train_data = load_data(args.training_images_dir, verbose=False)
-    train_imgs = {}
-    for x in train_data:
-        cur_id = x['parent_id']
-        cur_path = os.path.join(args.images_dir, x['path'])
-        if cur_id in train_imgs:
-            train_imgs[cur_id].append(cur_path)
-        else:
-            train_imgs[cur_id] = [cur_path]
+    train_imgs = generate_dictionary(train_data, args)
     train_parents = list(train_imgs.keys())
     np.random.shuffle(train_parents)
 
@@ -124,21 +153,14 @@ def _main():
             train_lens[cur_len] += 1
         else:
             train_lens[cur_len] = 1
-    train_lens = pd.DataFrame(train_lens, index = [0])
+    train_lens = pd.DataFrame(train_lens, index=[0])
     print("Training length distribution:")
     print(train_lens)
 
     if args.validation_images_dir:
         do_valid = True
         val_data = load_data(args.validation_images_dir, verbose=False)
-        val_imgs = {}
-        for x in val_data:
-            cur_id = x['parent_id']
-            cur_path = os.path.join(args.images_dir, x['path'])
-            if cur_id in val_imgs:
-                val_imgs[cur_id].append(cur_path)
-            else:
-                val_imgs[cur_id] = [cur_path]
+        val_imgs = generate_dictionary(val_data, args)
         val_parents = list(val_imgs.keys())
         np.random.shuffle(val_parents)
         if args.preload_images:
@@ -230,7 +252,8 @@ def _main():
         'hflip_prob': args.hflip,
         'vflip_prob': args.vflip
     }
-    if (args.no_colour_transforms == 0):
+
+    if args.no_colour_transforms == 0:
         augment['hue']: args.hue
         augment['saturation']: args.sat
         augment['value']: args.val
@@ -246,7 +269,7 @@ def _main():
                                      augment=augment,
                                      greyscale=args.greyscale == 1,
                                      fill_letterbox=args.fill_letterbox == 1,
-                                     cache = train_cache if args.preload_images == 1 else None)
+                                     cache=train_cache if args.preload_images == 1 else None)
 
     if do_valid:
         val_generator = data_generator(val_imgs,
@@ -260,17 +283,17 @@ def _main():
                                        augment=augment,
                                        greyscale=args.greyscale == 1,
                                        fill_letterbox=args.fill_letterbox == 1,
-                                       cache = val_cache if args.preload_images == 1 else None)
+                                       cache=val_cache if args.preload_images == 1 else None)
     else:
         val_generator = None
 
     model.fit_generator(train_generator,
-                steps_per_epoch=max(1, args.images_per_epoch // true_batch_size),
-                validation_data=val_generator,
-                validation_steps=max(1, args.images_per_epoch // true_batch_size),
-                epochs=args.end_epoch,
-                initial_epoch=args.start_epoch - 1,
-                callbacks=callbacks)
+                        steps_per_epoch=max(1, args.images_per_epoch // true_batch_size),
+                        validation_data=val_generator,
+                        validation_steps=max(1, args.images_per_epoch // true_batch_size),
+                        epochs=args.end_epoch,
+                        initial_epoch=args.start_epoch - 1,
+                        callbacks=callbacks)
 
 
 ##############################
