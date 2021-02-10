@@ -15,6 +15,7 @@ from clr_callback import CyclicLR
 from checkpoint import MyModelCheckpoint
 from load_data import load_data
 from tensorflow import config
+from cache import preload_images
 physical_devices = config.list_physical_devices('GPU')
 config.experimental.set_memory_growth(physical_devices[0], True)
 
@@ -31,6 +32,8 @@ def _main():
     parser.add_argument('--restart-checkpoint', type=str, default=None, help='The checkpoint from which to restart.')
     parser.add_argument('--image-size', type=int, default=224,
                         help='The image size in pixels, default is 224 (meaning 224x224).')
+    parser.add_argument('--preload-images', type=int, default=0,
+                        help='Preload (cache) images before starting training.')
     parser.add_argument('--greyscale', type=int, default=0, help='If set to 1, converts images to greyscale.')
     parser.add_argument('--batch-size', type=int, default=24, help='The training minibatch size.')
     parser.add_argument('--loss-batch', type=int, default=4, help='The loss minibatch size.')
@@ -111,6 +114,9 @@ def _main():
     train_parents = list(train_imgs.keys())
     np.random.shuffle(train_parents)
 
+    if args.preload_images:
+        train_cache = preload_images(train_data, 4, args.images_dir)
+
     train_lens = {}
     for k, v in train_imgs.items():
         cur_len = len(v)
@@ -135,6 +141,9 @@ def _main():
                 val_imgs[cur_id] = [cur_path]
         val_parents = list(val_imgs.keys())
         np.random.shuffle(val_parents)
+        if args.preload_images:
+            val_cache = preload_images(val_data, 4, args.images_dir)
+
     else:
         do_valid = False
 
@@ -236,7 +245,8 @@ def _main():
                                      no_augment=False,
                                      augment=augment,
                                      greyscale=args.greyscale == 1,
-                                     fill_letterbox=args.fill_letterbox == 1)
+                                     fill_letterbox=args.fill_letterbox == 1,
+                                     cache = train_cache if args.preload_images == 1 else None)
 
     if do_valid:
         val_generator = data_generator(val_imgs,
@@ -249,7 +259,8 @@ def _main():
                                        no_augment=False,
                                        augment=augment,
                                        greyscale=args.greyscale == 1,
-                                       fill_letterbox=args.fill_letterbox == 1)
+                                       fill_letterbox=args.fill_letterbox == 1,
+                                       cache = val_cache if args.preload_images == 1 else None)
     else:
         val_generator = None
 

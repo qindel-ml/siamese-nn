@@ -1,15 +1,18 @@
 import numpy as np
 from PIL import Image
+import io
 from AugmentedLetterbox import AugmentedLetterbox
 
 
 def data_generator(imgs, parents, batch_size, loss_batch, input_shape, same_prob, no_aug_prob,
-                   no_augment=False, augment={}, greyscale=False, fill_letterbox=False):
+                   no_augment=False, augment={}, greyscale=False, fill_letterbox=False,
+                   cache = None):
 
     # initialize
     sizew = input_shape[0]
     sizeh = input_shape[1]
     conv = 'L' if input_shape[2] == 1 else 'RGB'
+    has_cache = cache is not None
 
     n = len(parents)
     np.random.shuffle(parents)
@@ -29,11 +32,16 @@ def data_generator(imgs, parents, batch_size, loss_batch, input_shape, same_prob
 
             for j in range(k//4):
                 cur_path = cur_pos[j]
-
-                if conv == 'L':
-                    img_a = Image.open(cur_path).convert(conv)
+                if has_cache:
+                    if conv == 'L':
+                        img_a = Image.open(io.BytesIO(cache[cur_path])).convert('RGB').convert(conv)
+                    else:
+                        img_a = Image.open(io.BytesIO(cache[cur_path])).convert('RGB')
                 else:
-                    img_a = Image.open(cur_path)
+                    if conv == 'L':
+                        img_a = Image.open(cur_path).convert(conv)
+                    else:
+                        img_a = Image.open(cur_path)
 
                 if greyscale:
                     img_a = img_a.convert('L').convert('RGB')
@@ -52,10 +60,16 @@ def data_generator(imgs, parents, batch_size, loss_batch, input_shape, same_prob
             # store the negative examples
             for j in range(k - k//4):
                 cur_path = np.random.choice(imgs[negs[j]], 1)[0]
-                if conv == 'L':
-                    img_n = Image.open(cur_path).convert(conv)
+                if has_cache:
+                    if conv == 'L':
+                        img_n = Image.open(io.BytesIO(cache[cur_path])).convert('RGB').convert(conv)
+                    else:
+                        img_n = Image.open(io.BytesIO(cache[cur_path])).convert('RGB')
                 else:
-                    img_n = Image.open(cur_path)
+                    if conv == 'L':
+                        img_n = Image.open(cur_path).convert(conv)
+                    else:
+                        img_n = Image.open(cur_path)
 
                 if greyscale:
                     img_n = img_n.convert('L').convert('RGB')
