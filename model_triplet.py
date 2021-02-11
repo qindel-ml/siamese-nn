@@ -4,7 +4,6 @@ from tensorflow.keras.layers import Input, Dense, Activation, BatchNormalization
     GlobalAvgPool2D, Concatenate, Multiply, Average
 from tensorflow.keras.models import Model
 from custom_backbone import custom_backbone
-import tensorflow.keras.backend as K
 
 
 def create_model(
@@ -75,18 +74,6 @@ def create_model(
     return encoder
 
 
-def calculate_dist(optimization, metric, anchors, batch, group):
-    result = optimization(
-        K.mean(
-            metric(
-                K.repeat_elements(anchors, batch, axis=1), group
-            ),
-            axis=2
-        )
-    )
-    return result
-
-
 def batch_hard_loss(outputs, loss_batch, loss_margin, soft=False, metric='euclidian'):
     """
     An implementation of the batch hard loss (eq. 5 from arXiv:1703.07737 "In Defense of the Triplet Loss for Person
@@ -101,6 +88,7 @@ def batch_hard_loss(outputs, loss_batch, loss_margin, soft=False, metric='euclid
     Returns:
         the batch hard loss
     """
+    import tensorflow.keras.backend as K
 
     # group images by examples (each example contains loss_batch images)
     examples = K.reshape(outputs, (-1, loss_batch, K.shape(outputs)[1]))
@@ -113,19 +101,47 @@ def batch_hard_loss(outputs, loss_batch, loss_margin, soft=False, metric='euclid
 
     if metric == 'euclidian':
         # compute the maximum positive distance
-        pos_dist = calculate_dist(K.max, K.square, anchors, loss_batch // 4 - 1, positives)
+        pos_dist = \
+            K.max(
+                K.mean(
+                    K.square(
+                        K.repeat_elements(anchors, loss_batch // 4 - 1, axis=1) - positives
+                    ),
+                    axis=2
+                )
+            )
 
         # compute the minimum negative distance
         neg_dist = \
-            calculate_dist(K.min, K.square, anchors, loss_batch - loss_batch // 4, negatives)
-
+            K.min(
+                K.mean(
+                    K.square(
+                        K.repeat_elements(anchors, loss_batch - loss_batch // 4, axis=1) - negatives
+                    ),
+                    axis=2
+                )
+            )
     else:
         # compute the maximum positive distance
         pos_dist = \
-            calculate_dist(K.max, K.binary_crossentropy, anchors, loss_batch // 4 - 1, positives)
+            K.max(
+                K.mean(
+                    K.binary_crossentropy(
+                        K.repeat_elements(anchors, loss_batch // 4 - 1, axis=1), positives
+                    ),
+                    axis=2
+                )
+            )
+
         # compute the minimum negative distance
         neg_dist = \
-            calculate_dist(K.min, K.binary_crossentropy, anchors, loss_batch - loss_batch // 4, negatives)
+            K.min(
+                K.mean(
+                    K.binary_crossentropy(
+                        K.repeat_elements(anchors, loss_batch - loss_batch // 4, axis=1), negatives
+                    ), axis=2
+                )
+            )
 
     # compute the average true batch loss
     if not soft:
@@ -135,3 +151,5 @@ def batch_hard_loss(outputs, loss_batch, loss_margin, soft=False, metric='euclid
         loss = K.mean(tf.math.log1p(K.exp(pos_dist - neg_dist)))
 
     return loss
+
+
