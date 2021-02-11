@@ -61,8 +61,8 @@ def create_model(
     gmul = Multiply()([gmax, gavg])
     ggavg = Average()([gmax, gavg])
     backbone = Concatenate()([gmax, gavg, gmul, ggavg])
-    backbone = Dense(feature_len)(backbone)
     backbone = BatchNormalization()(backbone)
+    backbone = Dense(feature_len)(backbone)
     backbone = Activation('sigmoid')(backbone)
 
     encoder = Model(input_img, backbone)
