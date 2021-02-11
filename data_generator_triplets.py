@@ -4,9 +4,9 @@ import io
 from AugmentedLetterbox import AugmentedLetterbox
 
 
-def process_image(has_cache, cache, conv, cur_path, greyscaled, no_aug_prob,
+def process_image(cache, conv, cur_path, greyscaled, no_aug_prob,
                   sizew, sizeh, augment, fill_letterbox):
-    if has_cache:
+    if cur_path in cache.keys():
         if conv == 'L':
             img = Image.open(io.BytesIO(cache[cur_path])).convert('RGB').convert(conv)
         else:
@@ -27,12 +27,11 @@ def process_image(has_cache, cache, conv, cur_path, greyscaled, no_aug_prob,
 
 def data_generator(imgs, parents, batch_size, loss_batch, input_shape, same_prob, no_aug_prob,
                    no_augment=False, augment={}, greyscale=False, fill_letterbox=False,
-                   cache=None):
+                   cache={}):
     # initialize
     sizew = input_shape[0]
     sizeh = input_shape[1]
     conv = 'L' if input_shape[2] == 1 else 'RGB'
-    has_cache = cache is not None
 
     n = len(parents)
     np.random.shuffle(parents)
@@ -53,7 +52,7 @@ def data_generator(imgs, parents, batch_size, loss_batch, input_shape, same_prob
             for j in range(k // 4):
                 cur_path = cur_pos[j]
                 img_a = \
-                    process_image(has_cache, cache, conv, cur_path, greyscale, no_aug_prob,
+                    process_image(cache, conv, cur_path, greyscale, no_aug_prob,
                                   sizew, sizeh, augment, fill_letterbox)
                 images.append(np.array(img_a) / 255.0)
 
@@ -67,7 +66,7 @@ def data_generator(imgs, parents, batch_size, loss_batch, input_shape, same_prob
             for j in range(k - k // 4):
                 cur_path = np.random.choice(imgs[negs[j]], 1)[0]
                 img_n = \
-                    process_image(has_cache, cache, conv, cur_path, greyscale, no_aug_prob,
+                    process_image(cache, conv, cur_path, greyscale, no_aug_prob,
                                   sizew, sizeh, augment, fill_letterbox)
                 images.append(np.array(img_n) / 255.0)
 

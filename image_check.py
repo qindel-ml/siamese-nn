@@ -6,19 +6,15 @@ import numpy as np
 from PIL import Image
 
 
-def preload_images(data, num_threads, image_dir, cache_flag):
+def precheck_images(data, num_threads, image_dir):
     """
-    Preload the images into cache.
+    Preload the images into checked.
     :param data: the list of per-image dictionaries
     :param num_threads: the number of concurrent I/O processes
     :param image_dir: the root of the images directory
-    :param cache_flag: 1 if cache required 0 if not
-    :return: an image cache dictionary
+    :return: an image checked dictionary
     """
-    if cache_flag == 1:
-        print('Caching and checking {} images using {} threads'.format(len(data), num_threads))
-    else:
-        print('Checking {} images using {} threads'.format(len(data), num_threads))
+    print('Checking {} images using {} threads'.format(len(data), num_threads))
     chunk_size = len(data) // num_threads
     data_chunks = [
         data[i * chunk_size:min(len(data), (i + 1) * chunk_size)
@@ -27,19 +23,19 @@ def preload_images(data, num_threads, image_dir, cache_flag):
     ]
 
     r = Parallel(n_jobs=num_threads)(
-        delayed(image_worker)
-        (thread_data, image_dir, cache_flag, thread_cnt == num_threads - 1, num_threads)
+        delayed(checked_worker)
+        (thread_data, image_dir, thread_cnt == num_threads - 1, num_threads)
         for thread_cnt, thread_data in enumerate(data_chunks))
 
-    image_dict, cache_list, read_fails, not_found, cache_sizes = zip(*r)
+    correct_images, read_fails, not_found, checked_sizes = zip(*r)
 
-    image_dict = [x for sublist in list(image_dict) for x in sublist]
+    correct_images = [x for sublist in list(correct_images) for x in sublist]
 
     train_imgs = {}
     for d in data:
         cur_id = d['parent_id']
         complete_path = os.path.join(image_dir, d['path'])
-        if complete_path not in image_dict:
+        if complete_path not in correct_images:
             continue
         if cur_id in train_imgs:
             train_imgs[cur_id].append(complete_path)
@@ -48,25 +44,18 @@ def preload_images(data, num_threads, image_dir, cache_flag):
 
     total_fails = sum(read_fails)
     total_not_found = sum(not_found)
-    total_size = sum(cache_sizes)
-    img_cache = cache_list[0]
-    for i in range(len(cache_list)):
-        if i > 0:
-            img_cache.update(cache_list[i])
-    del cache_list
+    total_size = sum(checked_sizes)
     print('Failed to read {} images ({}% of total).'.format(total_fails,
                                                             np.around(total_fails * 100 / len(data), 1)))
     print('Not found {} images ({}% of total).'.format(total_not_found,
                                                        np.around(total_not_found * 100 / len(data), 1)))
-    if cache_flag == 1:
-        print('\n\n\nTotal cache size: {:.3f} GB\n\n'.format(total_size / 1073741824))
+    # print('\n\n\nTotal checked size: {:.3f} GB\n\n'.format(total_size / 1073741824))
 
-    return train_imgs, img_cache
+    return train_imgs
 
 
-def image_worker(data, image_dir, cache_flag, verbose=False, num_threads=1):
+def checked_worker(data, image_dir, verbose=False, num_threads=1):
     correct_images = []
-    img_cache = {}
     cnt = 0
     old_perc = 0
     old_cnt = 0
@@ -86,14 +75,9 @@ def image_worker(data, image_dir, cache_flag, verbose=False, num_threads=1):
                 img = Image.open(complete_path)
                 img.verify()
                 img.close()
-                if cache_flag:
-                    with open(complete_path, 'rb') as fr:
-                        img_cache[complete_path] = fr.read()
-                        size += sys.getsizeof(img_cache[complete_path])
                 correct_images.append(complete_path)
             except:
                 failed += 1
-                # img_cache[complete_path] = None
                 print("Failed: {}".format(complete_path))
         cnt += 1
         if verbose:
@@ -109,4 +93,4 @@ def image_worker(data, image_dir, cache_flag, verbose=False, num_threads=1):
     if verbose:
         pbar.close()
 
-    return correct_images, img_cache, failed, not_found, size
+    return correct_images, failed, not_found, size

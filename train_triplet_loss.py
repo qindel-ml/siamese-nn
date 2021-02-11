@@ -21,43 +21,6 @@ physical_devices = config.list_physical_devices('GPU')
 config.experimental.set_memory_growth(physical_devices[0], True)
 
 
-def correct_file(x_path, cur_path):
-    # allowed image extensions
-    exts = ('.jpg', '.JPG', '.jpeg', '.JPEG', '.png', '.PNG', '.gif', '.GIF', '.tiff', '.TIFF', '.TIF', '.bmp', '.BMP')
-
-    if not x_path.endswith(exts):
-        print("{} file has not an acceptable extension".format(x_path))
-        return False
-    elif not os.path.isfile(cur_path):
-        print("{} was not found".format(cur_path))
-        return False
-    # Abrir imagen correctamente
-    from PIL import Image
-    try:
-        img = Image.open(cur_path)
-        img.verify()
-        img.close()
-    except:
-        print("{} is corrupted".format(cur_path))
-
-    return True
-
-
-def generate_dictionary(data, args):
-    data_imgs = {}
-    for x in data:
-        cur_id = x['parent_id']
-        x_path = x['path']
-        cur_path = os.path.join(args.images_dir, x_path)
-        if not correct_file(x_path, cur_path):
-            continue
-        if cur_id in data_imgs:
-            data_imgs[cur_id].append(cur_path)
-        else:
-            data_imgs[cur_id] = [cur_path]
-    return data_imgs
-
-
 def _main():
     # argument parsing
     parser = argparse.ArgumentParser(description='Trains an image similarity detector.')
@@ -137,14 +100,14 @@ def _main():
         import mlflow.keras
         mlflow.keras.autolog()
 
+    # allowed image extensions
+    exts = ('.jpg', '.JPG', '.jpeg', '.JPEG', '.png', '.PNG', '.gif', '.GIF', '.tiff', '.TIFF', '.TIF', '.bmp', '.BMP')
+
     # create the training image list
     train_data = load_data(args.training_images_dir, verbose=False)
-    train_imgs = generate_dictionary(train_data, args)
+    train_imgs, train_cache = preload_images(train_data, 4, args.images_dir, args.preload_images)
     train_parents = list(train_imgs.keys())
     np.random.shuffle(train_parents)
-
-    if args.preload_images:
-        train_cache = preload_images(train_data, 4, args.images_dir)
 
     train_lens = {}
     for k, v in train_imgs.items():
@@ -160,11 +123,9 @@ def _main():
     if args.validation_images_dir:
         do_valid = True
         val_data = load_data(args.validation_images_dir, verbose=False)
-        val_imgs = generate_dictionary(val_data, args)
+        val_imgs, val_cache = preload_images(val_data, 4, args.images_dir, args.preload_images)
         val_parents = list(val_imgs.keys())
         np.random.shuffle(val_parents)
-        if args.preload_images:
-            val_cache = preload_images(val_data, 4, args.images_dir)
 
     else:
         do_valid = False
@@ -252,8 +213,7 @@ def _main():
         'hflip_prob': args.hflip,
         'vflip_prob': args.vflip
     }
-
-    if args.no_colour_transforms == 0:
+    if (args.no_colour_transforms == 0):
         augment['hue']: args.hue
         augment['saturation']: args.sat
         augment['value']: args.val
