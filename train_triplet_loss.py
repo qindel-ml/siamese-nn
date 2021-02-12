@@ -229,7 +229,7 @@ def _main():
                                      augment=augment,
                                      greyscale=args.greyscale == 1,
                                      fill_letterbox=args.fill_letterbox == 1,
-                                     cache=train_cache if args.preload_images == 1 else None)
+                                     cache=train_cache)
 
     if do_valid:
         val_generator = data_generator(val_imgs,
@@ -243,7 +243,7 @@ def _main():
                                        augment=augment,
                                        greyscale=args.greyscale == 1,
                                        fill_letterbox=args.fill_letterbox == 1,
-                                       cache=val_cache if args.preload_images == 1 else None)
+                                       cache=val_cache)
     else:
         val_generator = None
 
