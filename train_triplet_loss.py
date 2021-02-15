@@ -35,7 +35,8 @@ def _main():
     parser.add_argument('--image-size', type=int, default=224,
                         help='The image size in pixels, default is 224 (meaning 224x224).')
     parser.add_argument('--preload-images', type=int, default=0,
-                        help='Preload (cache) images before starting training.')
+                        help='Preload (cache) images before starting training, 0 if not needed, else: number of bytes '
+                             'to load in cache.')
     parser.add_argument('--greyscale', type=int, default=0, help='If set to 1, converts images to greyscale.')
     parser.add_argument('--batch-size', type=int, default=24, help='The training minibatch size.')
     parser.add_argument('--loss-batch', type=int, default=4, help='The loss minibatch size.')
@@ -66,8 +67,6 @@ def _main():
     parser.add_argument('--early-stopping-patience', type=int, default=-1,
                         help='The number of epoch to wait before stopping if the validation loss does not decrease. '
                              'Set to -1 to disable (default)')
-    parser.add_argument('--same-prob', type=float, default=0.5,
-                        help='The probability of comparing to the same image (0.5 by default).')
     parser.add_argument('--no-aug-prob', type=float, default=0.2,
                         help='The probability that an image is not augmented at all.')
     parser.add_argument('--crop-prob', type=float, default=0.0, help='The crop probability (0.05 by default).')
@@ -99,9 +98,6 @@ def _main():
     if args.mlflow:
         import mlflow.keras
         mlflow.keras.autolog()
-
-    # allowed image extensions
-    exts = ('.jpg', '.JPG', '.jpeg', '.JPEG', '.png', '.PNG', '.gif', '.GIF', '.tiff', '.TIFF', '.TIF', '.bmp', '.BMP')
 
     # create the training image list
     train_data = load_data(args.training_images_dir, verbose=False)
@@ -138,7 +134,7 @@ def _main():
     if not os.path.exists(args.output_dir):
         os.makedirs(args.output_dir)
 
-        # scale the larning rate to the batch size
+    # scale the larning rate to the batch size
     max_lr = args.max_lr
     min_lr = args.min_lr
 
@@ -213,7 +209,7 @@ def _main():
         'hflip_prob': args.hflip,
         'vflip_prob': args.vflip
     }
-    if (args.no_colour_transforms == 0):
+    if args.no_colour_transforms == 0:
         augment['hue']: args.hue
         augment['saturation']: args.sat
         augment['value']: args.val
@@ -223,9 +219,7 @@ def _main():
                                      args.batch_size,
                                      args.loss_batch,
                                      (args.image_size, args.image_size, num_channels),
-                                     args.same_prob,
                                      args.no_aug_prob,
-                                     no_augment=False,
                                      augment=augment,
                                      greyscale=args.greyscale == 1,
                                      fill_letterbox=args.fill_letterbox == 1,
@@ -237,9 +231,7 @@ def _main():
                                        args.batch_size,
                                        args.loss_batch,
                                        (args.image_size, args.image_size, num_channels),
-                                       args.same_prob,
                                        args.no_aug_prob,
-                                       no_augment=False,
                                        augment=augment,
                                        greyscale=args.greyscale == 1,
                                        fill_letterbox=args.fill_letterbox == 1,

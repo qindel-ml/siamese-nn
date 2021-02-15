@@ -6,6 +6,7 @@ from AugmentedLetterbox import AugmentedLetterbox
 
 def process_image(cache, conv, cur_path, greyscaled, no_aug_prob,
                   sizew, sizeh, augment, fill_letterbox):
+    # Checking if file is needed to be read from cache or from disk
     if cur_path in cache.keys():
         if conv == 'L':
             img = Image.open(io.BytesIO(cache[cur_path])).convert('RGB').convert(conv)
@@ -25,9 +26,8 @@ def process_image(cache, conv, cur_path, greyscaled, no_aug_prob,
     return lbimg
 
 
-def data_generator(imgs, parents, batch_size, loss_batch, input_shape, same_prob, no_aug_prob,
-                   no_augment=False, augment={}, greyscale=False, fill_letterbox=False,
-                   cache={}):
+def data_generator(imgs, parents, batch_size, loss_batch, input_shape, no_aug_prob, augment={},
+                   greyscale=False, fill_letterbox=False, cache={}):
     # initialize
     sizew = input_shape[0]
     sizeh = input_shape[1]
