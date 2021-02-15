@@ -15,7 +15,7 @@ def preload_images(data, num_threads, image_dir, cache_flag):
     :param cache_flag: 1 if cache required 0 if not
     :return: an image cache dictionary
     """
-    if cache_flag == 1:
+    if cache_flag > 0:
         print('Caching and checking {} images using {} threads'.format(len(data), num_threads))
     else:
         print('Checking {} images using {} threads'.format(len(data), num_threads))
@@ -28,7 +28,7 @@ def preload_images(data, num_threads, image_dir, cache_flag):
 
     r = Parallel(n_jobs=num_threads)(
         delayed(image_worker)
-        (thread_data, image_dir, cache_flag, thread_cnt == num_threads - 1, num_threads)
+        (thread_data, image_dir, cache_flag//num_threads, thread_cnt == num_threads - 1, num_threads)
         for thread_cnt, thread_data in enumerate(data_chunks))
 
     image_dict, cache_list, read_fails, not_found, cache_sizes = zip(*r)
@@ -58,7 +58,7 @@ def preload_images(data, num_threads, image_dir, cache_flag):
                                                             np.around(total_fails * 100 / len(data), 1)))
     print('Not found {} images ({}% of total).'.format(total_not_found,
                                                        np.around(total_not_found * 100 / len(data), 1)))
-    if cache_flag == 1:
+    if cache_flag > 0:
         print('\n\n\nTotal cache size: {:.3f} GB\n\n'.format(total_size / 1073741824))
 
     return train_imgs, img_cache
@@ -73,6 +73,7 @@ def image_worker(data, image_dir, cache_flag, verbose=False, num_threads=1):
     failed = 0
     not_found = 0
     size = 0
+    cached = 0
     if verbose:
         pbar = tqdm(total=len(data * num_threads))
 
@@ -86,10 +87,12 @@ def image_worker(data, image_dir, cache_flag, verbose=False, num_threads=1):
                 img = Image.open(complete_path)
                 img.verify()
                 img.close()
-                if cache_flag:
+                if cache_flag > 0 and cached < cache_flag:
                     with open(complete_path, 'rb') as fr:
                         img_cache[complete_path] = fr.read()
-                        size += sys.getsizeof(img_cache[complete_path])
+                        file_size = sys.getsizeof(img_cache[complete_path])
+                        size += file_size
+                        cached += file_size
                 correct_images.append(complete_path)
             except:
                 failed += 1
