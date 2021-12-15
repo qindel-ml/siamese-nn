@@ -102,6 +102,7 @@ def _main():
                 tmp_array = np.concatenate([cur_images, cur_dists])
                 tmp_array = tmp_array.reshape(2, args.top_k * num_embs * num_tembs).transpose()
                 tmp_df = pd.DataFrame(tmp_array, columns=['image', 'distance'])
+                tmp_df['distance'] = tmp_df['distance'].astype(float)
 
 
                 # sort all by distance, group by image and select the closest row for each image
